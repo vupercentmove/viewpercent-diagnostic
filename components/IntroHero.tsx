@@ -1,10 +1,16 @@
 "use client";
 
+import { trackDiagnosticStart } from "@/lib/analytics";
+
 interface IntroHeroProps {
   onStart: () => void;
 }
 
 export default function IntroHero({ onStart }: IntroHeroProps) {
+  const handleStart = () => {
+    trackDiagnosticStart();
+    onStart();
+  };
   return (
     <section className="bg-vp-navy text-white rounded-[14px] px-7 py-9 animate-fade-in-up">
       <p className="text-xs tracking-widest text-vp-blue-light font-medium mb-3 uppercase">
@@ -50,7 +56,7 @@ export default function IntroHero({ onStart }: IntroHeroProps) {
       </div>
 
       <button
-        onClick={onStart}
+        onClick={handleStart}
         className="w-full bg-vp-blue hover:bg-vp-blue-hover text-white font-medium text-sm py-3 rounded-lg transition-colors"
       >
         빠른 진단 시작하기

@@ -8,6 +8,7 @@ import {
   type Question,
 } from "@/lib/questions";
 import { ynToScore, likertToScore, type Answers } from "@/lib/scoring";
+import { trackQuizAnswer } from "@/lib/analytics";
 
 interface QuizStageProps {
   onComplete: (answers: Answers) => void;
@@ -27,22 +28,24 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
 
   const handleYnAnswer = useCallback(
     (questionId: string, answer: "yes" | "no") => {
+      trackQuizAnswer(questionId, stage.id);
       setAnswers((prev) => ({
         ...prev,
         [questionId]: ynToScore(questionId, answer),
       }));
     },
-    []
+    [stage.id]
   );
 
   const handleLikertAnswer = useCallback(
     (questionId: string, value: number) => {
+      trackQuizAnswer(questionId, stage.id);
       setAnswers((prev) => ({
         ...prev,
         [questionId]: likertToScore(value),
       }));
     },
-    []
+    [stage.id]
   );
 
   const handleNext = () => {

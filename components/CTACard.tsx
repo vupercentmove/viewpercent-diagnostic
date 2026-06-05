@@ -1,5 +1,7 @@
 "use client";
 
+import { trackCTAClick } from "@/lib/analytics";
+
 const KAKAO_URL = "http://pf.kakao.com/_xbunxen";
 
 export default function CTACard() {
@@ -18,6 +20,7 @@ export default function CTACard() {
         href={KAKAO_URL}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={trackCTAClick}
         className="block w-full text-center bg-[#FEE500] text-[#191919] font-medium text-sm py-3 rounded-lg hover:bg-[#F5DC00] transition-colors"
       >
         카카오 채널로 결과 보내기
