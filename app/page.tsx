@@ -21,8 +21,40 @@ import {
   getWorstStage,
   detectGap,
 } from "@/lib/scoring";
+import { getBenchmark } from "@/lib/benchmark";
 import { trackDiagnosticComplete, trackRestart } from "@/lib/analytics";
 import { track } from "@vercel/analytics";
+
+/** 진입 경로(utm) 파라미터 수집 — 익명 집계용 */
+function readUtm(): Record<string, string> | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const utm: Record<string, string> = {};
+  params.forEach((value, key) => {
+    if (key.startsWith("utm_") || key === "ref") utm[key] = value;
+  });
+  return Object.keys(utm).length > 0 ? utm : null;
+}
+
+/** 진단 결과를 익명으로 저장 (fire-and-forget — 실패해도 UX 안 막음) */
+function saveResult(payload: {
+  stageScores: { stageId: number; score: number }[];
+  overallScore: number;
+  weakestStage: number;
+  resultType: string;
+  hasGap: boolean;
+}) {
+  try {
+    fetch("/api/diagnostic-result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, utm: readUtm() }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* noop */
+  }
+}
 
 type Phase = "intro" | "quiz" | "result" | "deep-quiz" | "deep-result";
 
@@ -51,6 +83,17 @@ export default function HomePage() {
       overallScore: overall,
       worstStageId: worst.stageId,
       worstScore: worst.score,
+      hasGap: gapResult?.hasGap ?? false,
+    });
+
+    // 익명 결과 저장 (업계 벤치마크 집계용)
+    saveResult({
+      stageScores: scores,
+      overallScore: overall,
+      weakestStage: worst.stageId,
+      resultType: gapResult?.hasGap
+        ? `gap_${gapResult.perceivedWorst}_${gapResult.actualWorst}`
+        : "none",
       hasGap: gapResult?.hasGap ?? false,
     });
   };
@@ -88,6 +131,10 @@ export default function HomePage() {
   const overallScore = useMemo(() => calcOverallScore(answers), [answers]);
   const worstStage = useMemo(() => getWorstStage(stageScores), [stageScores]);
   const gap = useMemo(() => detectGap(answers), [answers]);
+  const benchmark = useMemo(
+    () => getBenchmark(overallScore, stageScores),
+    [overallScore, stageScores]
+  );
 
   return (
     <>
@@ -109,6 +156,7 @@ export default function HomePage() {
           <ResultHero
             worstStageId={worstStage.stageId}
             overallScore={overallScore}
+            benchmark={benchmark}
           />
 
           {/* 2. 레이더 차트 시각화 */}
@@ -148,6 +196,7 @@ export default function HomePage() {
           <PriorityCard
             worstStageId={worstStage.stageId}
             worstScore={worstStage.score}
+            benchmark={benchmark}
           />
 
           {/* 7. 빈틈 진단 (감지된 경우에만) */}
@@ -178,6 +227,7 @@ export default function HomePage() {
           <ResultHero
             worstStageId={worstStage.stageId}
             overallScore={overallScore}
+            benchmark={benchmark}
           />
 
           {/* 2. 레이더 차트 */}
@@ -196,6 +246,7 @@ export default function HomePage() {
           <PriorityCard
             worstStageId={worstStage.stageId}
             worstScore={worstStage.score}
+            benchmark={benchmark}
           />
 
           {/* 7. 빈틈 진단 */}

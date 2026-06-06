@@ -1,17 +1,22 @@
 "use client";
 
 import { STAGES } from "@/lib/stage-meta";
+import type { BenchmarkResult } from "@/lib/benchmark";
 
 interface PriorityCardProps {
   worstStageId: number;
   worstScore: number;
+  benchmark?: BenchmarkResult;
 }
 
 export default function PriorityCard({
   worstStageId,
   worstScore,
+  benchmark,
 }: PriorityCardProps) {
   const stage = STAGES.find((s) => s.id === worstStageId)!;
+  const showBenchmark =
+    benchmark && benchmark.weakestStageId === worstStageId;
 
   return (
     <section className="bg-white border border-gray-100 rounded-[14px] p-6 mb-4 animate-fade-in-up">
@@ -26,6 +31,24 @@ export default function PriorityCard({
       <p className="text-[13px] text-gray-500 mb-4">
         핵심 질문: &ldquo;{stage.coreQuestion}&rdquo;
       </p>
+
+      {/* 업계 벤치마크 — 이 단계의 상대 위치 (개선 여지 강조) */}
+      {showBenchmark && (
+        <div className="bg-vp-blue/[0.06] border border-vp-blue/15 rounded-lg p-4 mb-4">
+          <p className="text-[13px] text-gray-700 leading-relaxed">
+            이 단계는 진단한 브랜드의{" "}
+            <span className="font-semibold text-vp-blue">
+              약 {benchmark!.weakestStageBehindPercent}%
+            </span>
+            가 더 앞서 있어요. 가장 먼저 따라잡으면 효과가 큰 지점이에요.
+          </p>
+          {benchmark!.isSeed && (
+            <p className="text-[11px] text-gray-400 mt-2">
+              ※ 업계 운영 기준치 대비 위치 (초기 기준)
+            </p>
+          )}
+        </div>
+      )}
 
       {/* 운영 원칙 카드 (Thinking 프레임 반영) */}
       <div className="bg-vp-navy/[0.03] border border-vp-navy/10 rounded-lg p-4 mb-4">
