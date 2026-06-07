@@ -14,6 +14,7 @@ import EmpathyQuotes from "@/components/EmpathyQuotes";
 import BeyondCard from "@/components/BeyondCard";
 import CTACard from "@/components/CTACard";
 import DeepResultCard from "@/components/DeepResultCard";
+import CaseStudyCard from "@/components/CaseStudyCard";
 import {
   type Answers,
   calcAllStageScores,
@@ -22,6 +23,7 @@ import {
   detectGap,
 } from "@/lib/scoring";
 import { getBenchmark } from "@/lib/benchmark";
+import { matchCase, isGapMatch } from "@/lib/case-match";
 import { trackDiagnosticComplete, trackRestart } from "@/lib/analytics";
 import { track } from "@vercel/analytics";
 
@@ -135,6 +137,11 @@ export default function HomePage() {
     () => getBenchmark(overallScore, stageScores),
     [overallScore, stageScores]
   );
+  const matchedCase = useMemo(() => matchCase(gap, worstStage), [gap, worstStage]);
+  const matchedByGap = useMemo(
+    () => isGapMatch(gap, matchedCase),
+    [gap, matchedCase]
+  );
 
   return (
     <>
@@ -199,6 +206,11 @@ export default function HomePage() {
             benchmark={benchmark}
           />
 
+          {/* 6.5 매칭된 사례 (있을 때만) */}
+          {matchedCase && (
+            <CaseStudyCard caseStudy={matchedCase} matchedByGap={matchedByGap} />
+          )}
+
           {/* 7. 빈틈 진단 (감지된 경우에만) */}
           {gap && gap.hasGap && <GapDiagnosisCard gap={gap} />}
 
@@ -248,6 +260,11 @@ export default function HomePage() {
             worstScore={worstStage.score}
             benchmark={benchmark}
           />
+
+          {/* 6.5 매칭된 사례 (있을 때만) */}
+          {matchedCase && (
+            <CaseStudyCard caseStudy={matchedCase} matchedByGap={matchedByGap} />
+          )}
 
           {/* 7. 빈틈 진단 */}
           {gap && gap.hasGap && <GapDiagnosisCard gap={gap} />}
