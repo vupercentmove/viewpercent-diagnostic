@@ -53,3 +53,21 @@ export function trackRestart() {
 export function trackResultView(section: string) {
   track("result_view", { section });
 }
+
+/** 매칭된 사례 노출 */
+export function trackCaseView(
+  caseId: string,
+  stageId: number,
+  matchedByGap: boolean
+) {
+  track("case_view", {
+    caseId,
+    stageId,
+    matchedByGap: matchedByGap ? "yes" : "no",
+  });
+}
+
+/** 사례 카드 내 카카오 CTA 클릭 */
+export function trackCaseCtaClick(caseId: string) {
+  track("case_cta_click", { caseId });
+}
