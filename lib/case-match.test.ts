@@ -3,10 +3,6 @@ import { matchCase, isGapMatch } from "@/lib/case-match";
 import type { CaseStudy } from "@/lib/cases";
 import type { GapDiagnosis } from "@/lib/scoring";
 
-const gapCase: CaseStudy = {
-  id: "gap", brandType: "B", stageId: 3, gapPattern: "1->3",
-  symptom: "s", realCause: "r", action: "a", result: "res",
-};
 const stage3Case: CaseStudy = {
   id: "s3", brandType: "B", stageId: 3,
   symptom: "s", realCause: "r", action: "a", result: "res",
