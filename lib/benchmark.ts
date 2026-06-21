@@ -31,6 +31,26 @@ const OVERALL_BASELINE: Baseline = { mean: 53, std: 14 };
 /** 실데이터 표본 수. 실집계로 교체되기 전엔 null = seed 모드. */
 const SAMPLE_SIZE: number | null = null;
 
+/**
+ * 표본수 단일 진실원천(read-only) 접근자.
+ *
+ * 컴포넌트는 절대 수치를 하드코딩하지 말고 이 함수로만 표본수를 읽는다.
+ * 빌드/SSR 상수로 평가되어 클라이언트 fetch 없이 layout shift를 막는다.
+ *
+ * 환경변수 BENCHMARK_SAMPLE_SIZE가 유효한 양의 정수일 때만 우선 적용하고,
+ * 그 외(미설정/0 이하/비정수/NaN)는 모듈 상수 SAMPLE_SIZE로 폴백한다.
+ */
+export function getSampleSize(): number | null {
+  const raw = process.env.BENCHMARK_SAMPLE_SIZE;
+  if (raw !== undefined) {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return SAMPLE_SIZE;
+}
+
 /** 표준정규 누적분포함수 근사 (Abramowitz & Stegun 7.1.26). */
 function normalCdf(z: number): number {
   const t = 1 / (1 + 0.2316419 * Math.abs(z));

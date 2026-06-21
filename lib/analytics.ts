@@ -126,3 +126,16 @@ export function trackStickyCtaView(stageId: number) {
 export function trackStickyCtaClick(stageId: number, byGap: boolean) {
   track("sticky_cta_click", { stageId, byGap: byGap ? "yes" : "no" });
 }
+
+/** 누적 진단수 사회적증거 배지 노출 (1회) */
+export function trackSocialProofView(
+  variant: "intro" | "result",
+  isQualitative: boolean,
+  count: number | null
+) {
+  track("social_proof_view", {
+    variant,
+    isQualitative: isQualitative ? "yes" : "no",
+    count: count ?? 0,
+  });
+}
