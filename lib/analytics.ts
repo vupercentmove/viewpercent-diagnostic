@@ -76,3 +76,25 @@ export function trackCaseCtaClick(caseId: string) {
 export function trackEncouragement(context: "quiz" | "deep") {
   track("progress_encouragement", { context });
 }
+
+/** 정체성 결과 라벨 노출 */
+export function trackLabelView(
+  labelId: string,
+  stageId: number,
+  matchedByGap: boolean
+) {
+  track("label_view", {
+    labelId,
+    stageId,
+    matchedByGap: matchedByGap ? "yes" : "no",
+  });
+}
+
+/** 개인화 되비춤(echo) 인용 노출 */
+export function trackEchoView(
+  section: "gap" | "priority",
+  stageId: number,
+  questionId: string
+) {
+  track("echo_view", { section, stageId, questionId });
+}

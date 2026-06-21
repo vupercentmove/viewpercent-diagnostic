@@ -24,7 +24,12 @@ import {
 } from "@/lib/scoring";
 import { getBenchmark } from "@/lib/benchmark";
 import { matchCase, isGapMatch } from "@/lib/case-match";
-import { trackDiagnosticComplete, trackRestart } from "@/lib/analytics";
+import { matchLabel } from "@/lib/result-labels";
+import {
+  trackDiagnosticComplete,
+  trackRestart,
+  trackLabelView,
+} from "@/lib/analytics";
 import { track } from "@vercel/analytics";
 
 /** 진입 경로(utm) 파라미터 수집 — 익명 집계용 */
@@ -88,6 +93,10 @@ export default function HomePage() {
       hasGap: gapResult?.hasGap ?? false,
     });
 
+    // 정체성 라벨 산출 후 노출 트래킹 (1회)
+    const label = matchLabel(gapResult, worst);
+    trackLabelView(label.id, label.stageId, gapResult?.hasGap ?? false);
+
     // 익명 결과 저장 (업계 벤치마크 집계용)
     saveResult({
       stageScores: scores,
@@ -137,6 +146,10 @@ export default function HomePage() {
     () => getBenchmark(overallScore, stageScores),
     [overallScore, stageScores]
   );
+  const resultLabel = useMemo(
+    () => matchLabel(gap, worstStage),
+    [gap, worstStage]
+  );
   const matchedCase = useMemo(() => matchCase(gap, worstStage), [gap, worstStage]);
   const matchedByGap = useMemo(
     () => isGapMatch(gap, matchedCase),
@@ -164,6 +177,7 @@ export default function HomePage() {
             worstStageId={worstStage.stageId}
             overallScore={overallScore}
             benchmark={benchmark}
+            label={resultLabel}
           />
 
           {/* 2. 레이더 차트 시각화 */}
@@ -240,6 +254,7 @@ export default function HomePage() {
             worstStageId={worstStage.stageId}
             overallScore={overallScore}
             benchmark={benchmark}
+            label={resultLabel}
           />
 
           {/* 2. 레이더 차트 */}
