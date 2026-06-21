@@ -71,3 +71,8 @@ export function trackCaseView(
 export function trackCaseCtaClick(caseId: string) {
   track("case_cta_click", { caseId });
 }
+
+/** 진행 중 50% 격려 배너 노출 (1회) */
+export function trackEncouragement(context: "quiz" | "deep") {
+  track("progress_encouragement", { context });
+}
