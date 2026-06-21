@@ -1,10 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
-import { ynToScore, likertToScore, type Answers } from "@/lib/scoring";
-import { trackQuizAnswer } from "@/lib/analytics";
+import { likertToScore, type Answers } from "@/lib/scoring";
+import { trackQuizAnswer, trackEncouragement } from "@/lib/analytics";
+import {
+  nextIndex,
+  prevIndex,
+  isLastQuestion,
+  shouldAutoAdvance,
+  autoAdvanceDelay,
+} from "@/lib/quiz-navigation";
+import {
+  progressPercent,
+  hasCrossedHalf,
+  achievementLabel,
+} from "@/lib/progress";
 
 /** 심화 진단에서 역방향 yn 문항은 없음 (모두 정방향) */
 
@@ -19,37 +31,89 @@ export default function DeepQuizStage({
   onComplete,
   onCancel,
 }: DeepQuizStageProps) {
+  const [cursor, setCursor] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
+  const [showEncouragement, setShowEncouragement] = useState(false);
+
   const questions = getDeepQuestionsByStage(stageId);
   const stage = STAGES.find((s) => s.id === stageId)!;
-  const allAnswered = questions.every((q) => answers[q.id] !== undefined);
-  const progress = Math.round(
-    (Object.keys(answers).length / questions.length) * 100
+  const total = questions.length;
+  const q = questions[cursor];
+  const answeredCount = Object.keys(answers).length;
+  const progress = progressPercent(answeredCount, total);
+  const onLast = isLastQuestion(cursor, total);
+  const currentAnswered = answers[q.id] !== undefined;
+
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shownHalfRef = useRef(false);
+  const prevAnsweredRef = useRef(0);
+
+  const clearAdvanceTimer = useCallback(() => {
+    if (advanceTimer.current !== null) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearAdvanceTimer, [clearAdvanceTimer]);
+
+  const applyAnswer = useCallback(
+    (question: DeepQuestion, score: number) => {
+      trackQuizAnswer(question.id, stageId);
+
+      const wasAnswered = answers[question.id] !== undefined;
+      const prevAnswered = prevAnsweredRef.current;
+      clearAdvanceTimer();
+
+      setAnswers((prev) => {
+        const next = { ...prev, [question.id]: score };
+        const currAnswered = Object.keys(next).length;
+        prevAnsweredRef.current = currAnswered;
+
+        if (
+          !shownHalfRef.current &&
+          hasCrossedHalf(prevAnswered, currAnswered, total)
+        ) {
+          shownHalfRef.current = true;
+          setShowEncouragement(true);
+          trackEncouragement("deep");
+        }
+        return next;
+      });
+
+      if (
+        !wasAnswered &&
+        shouldAutoAdvance({ answeredIndex: cursor, cursor, total })
+      ) {
+        advanceTimer.current = setTimeout(() => {
+          setCursor((c) => nextIndex(c, total));
+        }, autoAdvanceDelay(question.answerType));
+      }
+    },
+    [answers, cursor, total, stageId, clearAdvanceTimer]
   );
 
   const handleYn = useCallback(
     (questionId: string, answer: "yes" | "no") => {
-      trackQuizAnswer(questionId, stageId);
-      setAnswers((prev) => ({
-        ...prev,
-        [questionId]: answer === "yes" ? 100 : 0,
-      }));
+      applyAnswer(q, answer === "yes" ? 100 : 0);
     },
-    [stageId]
+    [applyAnswer, q]
   );
 
   const handleLikert = useCallback(
     (questionId: string, value: number) => {
-      trackQuizAnswer(questionId, stageId);
-      setAnswers((prev) => ({
-        ...prev,
-        [questionId]: likertToScore(value),
-      }));
+      applyAnswer(q, likertToScore(value));
     },
-    [stageId]
+    [applyAnswer, q]
   );
 
-  const handleSubmit = () => {
+  const handlePrev = () => {
+    clearAdvanceTimer();
+    setCursor((c) => prevIndex(c));
+  };
+
+  const handleComplete = () => {
+    clearAdvanceTimer();
     onComplete(answers);
   };
 
@@ -73,12 +137,14 @@ export default function DeepQuizStage({
         </p>
       </div>
 
-      {/* 프로그레스 */}
+      {/* 진행바 + 성취 라벨 + 카운터 */}
       <div className="mb-5">
-        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-          <span>심화 진단 진행</span>
-          <span>
-            {Object.keys(answers).length}/{questions.length}
+        <div className="flex justify-between items-baseline text-xs mb-1.5">
+          <span className="text-vp-blue font-medium">
+            {achievementLabel(answeredCount, total)}
+          </span>
+          <span className="text-gray-400">
+            {answeredCount}/{total}
           </span>
         </div>
         <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
@@ -89,34 +155,50 @@ export default function DeepQuizStage({
         </div>
       </div>
 
-      {/* 문항들 */}
-      <div className="flex flex-col gap-4">
-        {questions.map((q) => (
-          <DeepQuestionCard
-            key={q.id}
-            question={q}
-            answer={answers[q.id]}
-            onYn={handleYn}
-            onLikert={handleLikert}
-          />
-        ))}
-      </div>
+      {/* 50% 격려 배너 (1회) */}
+      {showEncouragement && (
+        <div className="mb-5 px-3.5 py-2.5 rounded-lg bg-vp-blue/5 text-vp-blue text-[12.5px] leading-relaxed animate-fade-in-up">
+          핵심만 남았어요. 여기까지가 가장 중요합니다.
+        </div>
+      )}
+
+      {/* 현재 심화 문항 1개 */}
+      <DeepQuestionCard
+        key={q.id}
+        question={q}
+        answer={answers[q.id]}
+        onYn={handleYn}
+        onLikert={handleLikert}
+      />
 
       {/* 버튼 */}
       <div className="flex justify-between gap-2.5 mt-5">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
-        >
-          건너뛰기
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={!allAnswered}
-          className="px-5 py-2.5 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          심화 결과 보기
-        </button>
+        {cursor === 0 ? (
+          <button
+            onClick={onCancel}
+            className="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
+          >
+            건너뛰기
+          </button>
+        ) : (
+          <button
+            onClick={handlePrev}
+            className="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
+          >
+            이전
+          </button>
+        )}
+        {onLast ? (
+          <button
+            onClick={handleComplete}
+            disabled={!currentAnswered}
+            className="px-5 py-2.5 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            심화 결과 보기
+          </button>
+        ) : (
+          <div />
+        )}
       </div>
     </div>
   );

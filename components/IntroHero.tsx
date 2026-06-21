@@ -43,7 +43,7 @@ export default function IntroHero({ onStart }: IntroHeroProps) {
         </div>
         <div className="text-xs text-white/55">
           <strong className="block text-white font-medium text-lg mb-0.5">
-            3분
+            약 2분
           </strong>
           소요
         </div>
