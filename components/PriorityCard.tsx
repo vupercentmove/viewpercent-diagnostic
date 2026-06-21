@@ -26,7 +26,7 @@ export default function PriorityCard({
 
   useEffect(() => {
     if (echo) trackEchoView("priority", worstStageId, echo.questionId);
-  }, [echo, worstStageId]);
+  }, [echo?.questionId, worstStageId]);
 
   return (
     <section className="bg-white border border-gray-100 rounded-[14px] p-6 mb-4 animate-fade-in-up">

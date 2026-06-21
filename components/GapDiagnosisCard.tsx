@@ -16,7 +16,7 @@ export default function GapDiagnosisCard({ gap, answers }: GapDiagnosisCardProps
 
   useEffect(() => {
     if (echo) trackEchoView("gap", gap.actualWorst, echo.questionId);
-  }, [echo, gap.actualWorst]);
+  }, [echo?.questionId, gap.actualWorst]);
 
   return (
     <section className="bg-white border-2 border-vp-blue/20 rounded-[14px] p-6 mb-4 animate-fade-in-up">
