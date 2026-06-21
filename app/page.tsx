@@ -197,7 +197,7 @@ export default function HomePage() {
       )}
 
       {phase === "result" && (
-        <div className="flex flex-col gap-0 pb-28">
+        <div className="flex flex-col gap-0 pb-32">
           {/* 1. 결과 헤드라인 */}
           <ResultHero
             worstStageId={worstStage.stageId}
@@ -278,7 +278,7 @@ export default function HomePage() {
       )}
 
       {phase === "deep-result" && (
-        <div className="flex flex-col gap-0 pb-28">
+        <div className="flex flex-col gap-0 pb-32">
           {/* 1. 기본 결과 헤드라인 */}
           <ResultHero
             worstStageId={worstStage.stageId}

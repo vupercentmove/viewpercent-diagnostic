@@ -16,8 +16,6 @@ import {
  * 순수 로직(buildSteps/타이밍 상수)은 `lib/analyzing-steps`에 분리 — 테스트는 거기서.
  */
 
-export { buildSteps };
-
 interface AnalyzingInterstitialProps {
   worstStageName: string;
   hasGap: boolean;
