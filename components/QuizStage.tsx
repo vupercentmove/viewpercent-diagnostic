@@ -1,77 +1,131 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { STAGES } from "@/lib/stage-meta";
-import {
-  QUICK_QUESTIONS,
-  getQuestionsByStage,
-  type Question,
-} from "@/lib/questions";
+import { QUICK_QUESTIONS, type Question } from "@/lib/questions";
 import { ynToScore, likertToScore, type Answers } from "@/lib/scoring";
-import { trackQuizAnswer } from "@/lib/analytics";
+import { trackQuizAnswer, trackEncouragement } from "@/lib/analytics";
+import {
+  nextIndex,
+  prevIndex,
+  isLastQuestion,
+  shouldAutoAdvance,
+  autoAdvanceDelay,
+} from "@/lib/quiz-navigation";
+import {
+  progressPercent,
+  hasCrossedHalf,
+  achievementLabel,
+} from "@/lib/progress";
 
 interface QuizStageProps {
   onComplete: (answers: Answers) => void;
 }
 
 export default function QuizStage({ onComplete }: QuizStageProps) {
-  const [currentStageIdx, setCurrentStageIdx] = useState(0);
+  const [cursor, setCursor] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
+  const [showEncouragement, setShowEncouragement] = useState(false);
 
-  const stage = STAGES[currentStageIdx];
-  const stageQuestions = getQuestionsByStage(stage.id);
-  const totalQuestions = QUICK_QUESTIONS.length;
+  const total = QUICK_QUESTIONS.length;
+  const q = QUICK_QUESTIONS[cursor];
+  const stage = STAGES.find((s) => s.id === q.stageId)!;
   const answeredCount = Object.keys(answers).length;
-  const progress = Math.round((answeredCount / totalQuestions) * 100);
+  const progress = progressPercent(answeredCount, total);
+  const onLast = isLastQuestion(cursor, total);
+  const currentAnswered = answers[q.id] !== undefined;
 
-  const allStageAnswered = stageQuestions.every((q) => answers[q.id] !== undefined);
+  // 펜딩 자동 전진 타이머 / 격려 1회 가드 / 직전 응답 수
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shownHalfRef = useRef(false);
+  const prevAnsweredRef = useRef(0);
+
+  const clearAdvanceTimer = useCallback(() => {
+    if (advanceTimer.current !== null) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+  }, []);
+
+  // 언마운트 시 펜딩 타이머 정리
+  useEffect(() => clearAdvanceTimer, [clearAdvanceTimer]);
+
+  /** 공통 응답 처리: 트래킹 즉시 + 격려 1회 + 처음 답할 때만 자동 전진 */
+  const applyAnswer = useCallback(
+    (question: Question, score: number) => {
+      // 타이머 즉시 호출 — 타이머가 취소돼도 이벤트 유실 방지
+      trackQuizAnswer(question.id, question.stageId);
+
+      // 이전에 답이 있던 문항(=수정)인지 판단 — 루프 방지의 실제 메커니즘
+      const wasAnswered = answers[question.id] !== undefined;
+
+      const prevAnswered = prevAnsweredRef.current;
+      clearAdvanceTimer();
+
+      setAnswers((prev) => {
+        const next = { ...prev, [question.id]: score };
+        const currAnswered = Object.keys(next).length;
+        prevAnsweredRef.current = currAnswered;
+
+        // 50% 격려 (1회만)
+        if (
+          !shownHalfRef.current &&
+          hasCrossedHalf(prevAnswered, currAnswered, total)
+        ) {
+          shownHalfRef.current = true;
+          setShowEncouragement(true);
+          trackEncouragement("quiz");
+        }
+        return next;
+      });
+
+      // 처음 답하는 현재 문항이고 마지막이 아닐 때만 자동 전진
+      if (
+        !wasAnswered &&
+        shouldAutoAdvance({ answeredIndex: cursor, cursor, total })
+      ) {
+        advanceTimer.current = setTimeout(() => {
+          setCursor((c) => nextIndex(c, total));
+        }, autoAdvanceDelay(question.answerType));
+      }
+    },
+    [answers, cursor, total, clearAdvanceTimer]
+  );
 
   const handleYnAnswer = useCallback(
     (questionId: string, answer: "yes" | "no") => {
-      trackQuizAnswer(questionId, stage.id);
-      setAnswers((prev) => ({
-        ...prev,
-        [questionId]: ynToScore(questionId, answer),
-      }));
+      applyAnswer(q, ynToScore(questionId, answer));
     },
-    [stage.id]
+    [applyAnswer, q]
   );
 
   const handleLikertAnswer = useCallback(
     (questionId: string, value: number) => {
-      trackQuizAnswer(questionId, stage.id);
-      setAnswers((prev) => ({
-        ...prev,
-        [questionId]: likertToScore(value),
-      }));
+      applyAnswer(q, likertToScore(value));
     },
-    [stage.id]
+    [applyAnswer, q]
   );
 
-  const handleNext = () => {
-    if (currentStageIdx < STAGES.length - 1) {
-      setCurrentStageIdx((i) => i + 1);
-    } else {
-      onComplete(answers);
-    }
+  const handlePrev = () => {
+    clearAdvanceTimer();
+    setCursor((c) => prevIndex(c));
   };
 
-  const handlePrev = () => {
-    if (currentStageIdx > 0) {
-      setCurrentStageIdx((i) => i - 1);
-    }
+  const handleComplete = () => {
+    clearAdvanceTimer();
+    onComplete(answers);
   };
 
   return (
     <div className="bg-white border border-gray-100 rounded-[14px] p-6 animate-fade-in-up">
-      {/* 프로그레스 */}
+      {/* 진행바 + 성취 라벨 + 카운터 */}
       <div className="mb-5">
-        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-          <span>
-            {stage.label} — {stage.name}
+        <div className="flex justify-between items-baseline text-xs mb-1.5">
+          <span className="text-vp-blue font-medium">
+            {achievementLabel(answeredCount, total)}
           </span>
-          <span>
-            {answeredCount}/{totalQuestions}
+          <span className="text-gray-400">
+            {answeredCount}/{total}
           </span>
         </div>
         <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
@@ -82,31 +136,33 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
         </div>
       </div>
 
-      {/* Stage 힌트 */}
+      {/* 50% 격려 배너 (1회) */}
+      {showEncouragement && (
+        <div className="mb-5 px-3.5 py-2.5 rounded-lg bg-vp-blue/5 text-vp-blue text-[12.5px] leading-relaxed animate-fade-in-up">
+          절반 왔어요. 남은 절반이 더 빠릅니다.
+        </div>
+      )}
+
+      {/* Stage 헤더 (현재 문항 기준) */}
       <p className="text-[11px] tracking-wide text-vp-blue font-medium uppercase mb-1.5">
-        {stage.label}
+        {stage.label} — {stage.name}
       </p>
-      <h2 className="text-lg font-medium mb-1">{stage.name}</h2>
-      <p className="text-[13px] text-gray-500 leading-relaxed mb-6">
+      <p className="text-[12px] text-gray-400 leading-relaxed mb-5">
         {stage.hint}
       </p>
 
-      {/* 문항들 */}
-      <div className="flex flex-col gap-5">
-        {stageQuestions.map((q) => (
-          <QuestionCard
-            key={q.id}
-            question={q}
-            answer={answers[q.id]}
-            onYn={handleYnAnswer}
-            onLikert={handleLikertAnswer}
-          />
-        ))}
-      </div>
+      {/* 현재 문항 1개 (key로 전환 애니메이션) */}
+      <QuestionCard
+        key={q.id}
+        question={q}
+        answer={answers[q.id]}
+        onYn={handleYnAnswer}
+        onLikert={handleLikertAnswer}
+      />
 
       {/* 네비게이션 */}
       <div className="flex justify-between gap-2.5 mt-5">
-        {currentStageIdx > 0 ? (
+        {cursor > 0 ? (
           <button
             onClick={handlePrev}
             className="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
@@ -116,13 +172,17 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
         ) : (
           <div />
         )}
-        <button
-          onClick={handleNext}
-          disabled={!allStageAnswered}
-          className="px-5 py-2.5 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          {currentStageIdx < STAGES.length - 1 ? "다음 단계" : "결과 보기"}
-        </button>
+        {onLast ? (
+          <button
+            onClick={handleComplete}
+            disabled={!currentAnswered}
+            className="px-5 py-2.5 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+          >
+            결과 보기
+          </button>
+        ) : (
+          <div />
+        )}
       </div>
     </div>
   );
