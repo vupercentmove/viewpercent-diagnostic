@@ -15,6 +15,8 @@ import BeyondCard from "@/components/BeyondCard";
 import CTACard from "@/components/CTACard";
 import DeepResultCard from "@/components/DeepResultCard";
 import CaseStudyCard from "@/components/CaseStudyCard";
+import AnalyzingInterstitial from "@/components/AnalyzingInterstitial";
+import StickyCtaBar from "@/components/StickyCtaBar";
 import {
   type Answers,
   calcAllStageScores,
@@ -22,6 +24,7 @@ import {
   getWorstStage,
   detectGap,
 } from "@/lib/scoring";
+import { STAGES } from "@/lib/stage-meta";
 import { getBenchmark } from "@/lib/benchmark";
 import { matchCase, isGapMatch } from "@/lib/case-match";
 import { matchLabel } from "@/lib/result-labels";
@@ -63,7 +66,13 @@ function saveResult(payload: {
   }
 }
 
-type Phase = "intro" | "quiz" | "result" | "deep-quiz" | "deep-result";
+type Phase =
+  | "intro"
+  | "quiz"
+  | "analyzing"
+  | "result"
+  | "deep-quiz"
+  | "deep-result";
 
 export default function HomePage() {
   const [phase, setPhase] = useState<Phase>("intro");
@@ -78,7 +87,7 @@ export default function HomePage() {
 
   const handleQuizComplete = (ans: Answers) => {
     setAnswers(ans);
-    setPhase("result");
+    setPhase("analyzing");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     // 결과 산출 후 트래킹
@@ -107,6 +116,11 @@ export default function HomePage() {
         : "none",
       hasGap: gapResult?.hasGap ?? false,
     });
+  };
+
+  const handleAnalyzingDone = () => {
+    setPhase("result");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDeepStart = () => {
@@ -170,8 +184,20 @@ export default function HomePage() {
         />
       )}
 
+      {phase === "analyzing" && (
+        <AnalyzingInterstitial
+          worstStageName={
+            STAGES.find((s) => s.id === worstStage.stageId)?.name ?? ""
+          }
+          worstStageId={worstStage.stageId}
+          hasGap={!!gap?.hasGap}
+          hasCase={!!matchedCase}
+          onDone={handleAnalyzingDone}
+        />
+      )}
+
       {phase === "result" && (
-        <div className="flex flex-col gap-0">
+        <div className="flex flex-col gap-0 pb-28">
           {/* 1. 결과 헤드라인 */}
           <ResultHero
             worstStageId={worstStage.stageId}
@@ -245,11 +271,14 @@ export default function HomePage() {
           >
             처음부터 다시 진단하기
           </button>
+
+          {/* 하단 sticky 카톡 CTA */}
+          <StickyCtaBar stageId={worstStage.stageId} gap={gap} />
         </div>
       )}
 
       {phase === "deep-result" && (
-        <div className="flex flex-col gap-0">
+        <div className="flex flex-col gap-0 pb-28">
           {/* 1. 기본 결과 헤드라인 */}
           <ResultHero
             worstStageId={worstStage.stageId}
@@ -302,6 +331,9 @@ export default function HomePage() {
           >
             처음부터 다시 진단하기
           </button>
+
+          {/* 하단 sticky 카톡 CTA */}
+          <StickyCtaBar stageId={worstStage.stageId} gap={gap} />
         </div>
       )}
     </>

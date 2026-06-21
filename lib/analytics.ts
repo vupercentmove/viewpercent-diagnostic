@@ -98,3 +98,31 @@ export function trackEchoView(
 ) {
   track("echo_view", { section, stageId, questionId });
 }
+
+/** 분석중 인터스티셜 노출 (1회) */
+export function trackAnalyzingShown(
+  worstStageId: number,
+  hasGap: boolean,
+  hasCase: boolean
+) {
+  track("analyzing_shown", {
+    worstStage: worstStageId,
+    hasGap: hasGap ? "yes" : "no",
+    hasCase: hasCase ? "yes" : "no",
+  });
+}
+
+/** 분석중 인터스티셜 스킵 (모션 최소화 / 백그라운드 탭) */
+export function trackAnalyzingSkipped(reason: "reduced_motion" | "tab_hidden") {
+  track("analyzing_skipped", { reason });
+}
+
+/** 하단 sticky 카톡 CTA 노출 (1회) */
+export function trackStickyCtaView(stageId: number) {
+  track("sticky_cta_view", { stageId });
+}
+
+/** 하단 sticky 카톡 CTA 클릭 */
+export function trackStickyCtaClick(stageId: number, byGap: boolean) {
+  track("sticky_cta_click", { stageId, byGap: byGap ? "yes" : "no" });
+}
