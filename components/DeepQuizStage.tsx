@@ -63,23 +63,22 @@ export default function DeepQuizStage({
 
       const wasAnswered = answers[question.id] !== undefined;
       const prevAnswered = prevAnsweredRef.current;
+      const currAnswered = prevAnswered + (wasAnswered ? 0 : 1);
+
+      // 50% 격려 (1회만) — updater 밖에서 실행해 StrictMode 이중호출 방지
+      if (
+        !shownHalfRef.current &&
+        hasCrossedHalf(prevAnswered, currAnswered, total)
+      ) {
+        shownHalfRef.current = true;
+        setShowEncouragement(true);
+        trackEncouragement("deep");
+      }
+      prevAnsweredRef.current = currAnswered;
+
       clearAdvanceTimer();
 
-      setAnswers((prev) => {
-        const next = { ...prev, [question.id]: score };
-        const currAnswered = Object.keys(next).length;
-        prevAnsweredRef.current = currAnswered;
-
-        if (
-          !shownHalfRef.current &&
-          hasCrossedHalf(prevAnswered, currAnswered, total)
-        ) {
-          shownHalfRef.current = true;
-          setShowEncouragement(true);
-          trackEncouragement("deep");
-        }
-        return next;
-      });
+      setAnswers((prev) => ({ ...prev, [question.id]: score }));
 
       if (
         !wasAnswered &&

@@ -60,24 +60,22 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
       const wasAnswered = answers[question.id] !== undefined;
 
       const prevAnswered = prevAnsweredRef.current;
+      const currAnswered = prevAnswered + (wasAnswered ? 0 : 1);
+
+      // 50% 격려 (1회만) — updater 밖에서 실행해 StrictMode 이중호출 방지
+      if (
+        !shownHalfRef.current &&
+        hasCrossedHalf(prevAnswered, currAnswered, total)
+      ) {
+        shownHalfRef.current = true;
+        setShowEncouragement(true);
+        trackEncouragement("quiz");
+      }
+      prevAnsweredRef.current = currAnswered;
+
       clearAdvanceTimer();
 
-      setAnswers((prev) => {
-        const next = { ...prev, [question.id]: score };
-        const currAnswered = Object.keys(next).length;
-        prevAnsweredRef.current = currAnswered;
-
-        // 50% 격려 (1회만)
-        if (
-          !shownHalfRef.current &&
-          hasCrossedHalf(prevAnswered, currAnswered, total)
-        ) {
-          shownHalfRef.current = true;
-          setShowEncouragement(true);
-          trackEncouragement("quiz");
-        }
-        return next;
-      });
+      setAnswers((prev) => ({ ...prev, [question.id]: score }));
 
       // 처음 답하는 현재 문항이고 마지막이 아닐 때만 자동 전진
       if (
