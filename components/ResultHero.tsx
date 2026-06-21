@@ -3,6 +3,7 @@
 import { RESULT_HEADLINES } from "@/lib/stage-meta";
 import type { BenchmarkResult } from "@/lib/benchmark";
 import type { ResultLabel } from "@/lib/result-labels";
+import SocialProofBadge from "./SocialProofBadge";
 
 interface ResultHeroProps {
   worstStageId: number;
@@ -43,6 +44,11 @@ export default function ResultHero({
       <p className="text-[13.5px] text-white/70 leading-relaxed">
         {headline.sub}
       </p>
+
+      {/* 누적 진단수 사회적증거 — 표본 임계치 미만이면 정성 폴백 */}
+      <div className="mt-4">
+        <SocialProofBadge variant="result" />
+      </div>
 
       {/* 업계 벤치마크 — 상대 위치 */}
       {benchmark && (
