@@ -217,6 +217,7 @@ export default function HomePage() {
           <PriorityCard
             worstStageId={worstStage.stageId}
             worstScore={worstStage.score}
+            answers={answers}
             benchmark={benchmark}
           />
 
@@ -226,7 +227,7 @@ export default function HomePage() {
           )}
 
           {/* 7. 빈틈 진단 (감지된 경우에만) */}
-          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} />}
+          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} answers={answers} />}
 
           {/* 8. 공감 인용 */}
           <EmpathyQuotes worstStageId={worstStage.stageId} />
@@ -273,6 +274,7 @@ export default function HomePage() {
           <PriorityCard
             worstStageId={worstStage.stageId}
             worstScore={worstStage.score}
+            answers={answers}
             benchmark={benchmark}
           />
 
@@ -282,7 +284,7 @@ export default function HomePage() {
           )}
 
           {/* 7. 빈틈 진단 */}
-          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} />}
+          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} answers={answers} />}
 
           {/* 8. 공감 인용 */}
           <EmpathyQuotes worstStageId={worstStage.stageId} />

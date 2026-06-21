@@ -1,14 +1,22 @@
 "use client";
 
-import type { GapDiagnosis } from "@/lib/scoring";
+import { useEffect } from "react";
+import { type Answers, type GapDiagnosis, buildEcho, LOSS_AVERSION_LINE } from "@/lib/scoring";
 import { STAGES } from "@/lib/stage-meta";
+import { trackEchoView } from "@/lib/analytics";
 
 interface GapDiagnosisCardProps {
   gap: GapDiagnosis;
+  answers: Answers;
 }
 
-export default function GapDiagnosisCard({ gap }: GapDiagnosisCardProps) {
+export default function GapDiagnosisCard({ gap, answers }: GapDiagnosisCardProps) {
   const actualStage = STAGES.find((s) => s.id === gap.actualWorst);
+  const echo = buildEcho(answers, gap.actualWorst);
+
+  useEffect(() => {
+    if (echo) trackEchoView("gap", gap.actualWorst, echo.questionId);
+  }, [echo, gap.actualWorst]);
 
   return (
     <section className="bg-white border-2 border-vp-blue/20 rounded-[14px] p-6 mb-4 animate-fade-in-up">
@@ -22,6 +30,18 @@ export default function GapDiagnosisCard({ gap }: GapDiagnosisCardProps) {
       <p className="text-[15px] font-medium leading-relaxed text-gray-900 mb-3">
         {gap.message}
       </p>
+
+      {/* 개인화 되비춤 — 대표가 직접 답한 내용을 되짚어줌 */}
+      {echo && (
+        <div className="mb-3">
+          <p className="text-[13px] text-gray-500 leading-relaxed italic">
+            &ldquo;{echo.phrase}&rdquo;
+          </p>
+          <p className="text-[12.5px] text-gray-400 leading-relaxed mt-1.5">
+            {LOSS_AVERSION_LINE}
+          </p>
+        </div>
+      )}
 
       {actualStage && (
         <div className="bg-vp-blue/[0.04] rounded-lg p-3.5">
