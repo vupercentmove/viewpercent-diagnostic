@@ -1,22 +1,32 @@
 "use client";
 
+import { useEffect } from "react";
 import { STAGES } from "@/lib/stage-meta";
+import { type Answers, buildEcho, LOSS_AVERSION_LINE } from "@/lib/scoring";
+import { trackEchoView } from "@/lib/analytics";
 import type { BenchmarkResult } from "@/lib/benchmark";
 
 interface PriorityCardProps {
   worstStageId: number;
   worstScore: number;
+  answers: Answers;
   benchmark?: BenchmarkResult;
 }
 
 export default function PriorityCard({
   worstStageId,
   worstScore,
+  answers,
   benchmark,
 }: PriorityCardProps) {
   const stage = STAGES.find((s) => s.id === worstStageId)!;
   const showBenchmark =
     benchmark && benchmark.weakestStageId === worstStageId;
+  const echo = buildEcho(answers, worstStageId);
+
+  useEffect(() => {
+    if (echo) trackEchoView("priority", worstStageId, echo.questionId);
+  }, [echo?.questionId, worstStageId]);
 
   return (
     <section className="bg-white border border-gray-100 rounded-[14px] p-6 mb-4 animate-fade-in-up">
@@ -63,6 +73,18 @@ export default function PriorityCard({
           아니라, 이 질문에 &lsquo;예&rsquo;라고 확신할 수 있는지.
         </p>
       </div>
+
+      {/* 개인화 되비춤 — 대표가 직접 답한 내용을 되짚어줌 */}
+      {echo && (
+        <div className="mb-4">
+          <p className="text-[13px] text-gray-500 leading-relaxed italic">
+            &ldquo;{echo.phrase}&rdquo;
+          </p>
+          <p className="text-[12.5px] text-gray-400 leading-relaxed mt-1.5">
+            {LOSS_AVERSION_LINE}
+          </p>
+        </div>
+      )}
 
       {/* 잠금 메시지 */}
       <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-4">

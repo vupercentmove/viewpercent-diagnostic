@@ -31,6 +31,16 @@ const OVERALL_BASELINE: Baseline = { mean: 53, std: 14 };
 /** 실데이터 표본 수. 실집계로 교체되기 전엔 null = seed 모드. */
 const SAMPLE_SIZE: number | null = null;
 
+/**
+ * 표본수 단일 진실원천(read-only) 접근자.
+ *
+ * 컴포넌트는 절대 수치를 하드코딩하지 말고 이 함수로만 표본수를 읽는다.
+ * 모듈 상수 SAMPLE_SIZE가 유일한 출처다. 주간 집계로 교체할 때는 이 상수만 바꾼다.
+ */
+export function getSampleSize(): number | null {
+  return SAMPLE_SIZE;
+}
+
 /** 표준정규 누적분포함수 근사 (Abramowitz & Stegun 7.1.26). */
 function normalCdf(z: number): number {
   const t = 1 / (1 + 0.2316419 * Math.abs(z));
@@ -84,7 +94,7 @@ export function getBenchmark(
     weakestStageId: weakest.stageId,
     weakestStageBehindPercent: Math.min(95, Math.max(5, 100 - wTop)),
     weakestStageName,
-    isSeed: SAMPLE_SIZE === null,
-    sampleSize: SAMPLE_SIZE,
+    isSeed: getSampleSize() === null,
+    sampleSize: getSampleSize(),
   };
 }

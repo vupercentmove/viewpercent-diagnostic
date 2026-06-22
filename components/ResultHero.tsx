@@ -2,17 +2,21 @@
 
 import { RESULT_HEADLINES } from "@/lib/stage-meta";
 import type { BenchmarkResult } from "@/lib/benchmark";
+import type { ResultLabel } from "@/lib/result-labels";
+import SocialProofBadge from "./SocialProofBadge";
 
 interface ResultHeroProps {
   worstStageId: number;
   overallScore: number;
   benchmark?: BenchmarkResult;
+  label?: ResultLabel;
 }
 
 export default function ResultHero({
   worstStageId,
   overallScore,
   benchmark,
+  label,
 }: ResultHeroProps) {
   const headline = RESULT_HEADLINES[worstStageId] ?? RESULT_HEADLINES[1];
 
@@ -21,12 +25,30 @@ export default function ResultHero({
       <p className="text-[11px] tracking-widest text-vp-blue-light uppercase font-medium mb-2.5">
         diagnostic result
       </p>
+
+      {/* 정체성 결과 라벨 — 배지 + 한 줄 부연 */}
+      {label && (
+        <div className="mb-4">
+          <span className="inline-block text-[12.5px] font-medium text-vp-blue-light border border-vp-blue-light/40 rounded-full px-3 py-1 leading-snug">
+            {label.label}
+          </span>
+          <p className="text-[12.5px] text-white/55 leading-relaxed mt-2">
+            {label.tagline}
+          </p>
+        </div>
+      )}
+
       <h2 className="text-[22px] font-medium leading-[1.4] mb-3">
         {headline.title}
       </h2>
       <p className="text-[13.5px] text-white/70 leading-relaxed">
         {headline.sub}
       </p>
+
+      {/* 누적 진단수 사회적증거 — 표본 임계치 미만이면 정성 폴백 */}
+      <div className="mt-4">
+        <SocialProofBadge variant="result" />
+      </div>
 
       {/* 업계 벤치마크 — 상대 위치 */}
       {benchmark && (

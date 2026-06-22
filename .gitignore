@@ -2,6 +2,10 @@ node_modules/
 .next/
 out/
 
+# build artifacts (산출물 — 추적 불필요)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
 # env (secrets — never commit)
 .env
 .env.local

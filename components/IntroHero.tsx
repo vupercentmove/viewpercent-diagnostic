@@ -1,6 +1,7 @@
 "use client";
 
 import { trackDiagnosticStart } from "@/lib/analytics";
+import SocialProofBadge from "./SocialProofBadge";
 
 interface IntroHeroProps {
   onStart: () => void;
@@ -43,7 +44,7 @@ export default function IntroHero({ onStart }: IntroHeroProps) {
         </div>
         <div className="text-xs text-white/55">
           <strong className="block text-white font-medium text-lg mb-0.5">
-            3분
+            약 2분
           </strong>
           소요
         </div>
@@ -53,6 +54,10 @@ export default function IntroHero({ onStart }: IntroHeroProps) {
           </strong>
           단계 진단
         </div>
+      </div>
+
+      <div className="mb-5">
+        <SocialProofBadge variant="intro" />
       </div>
 
       <button

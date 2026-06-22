@@ -14,6 +14,9 @@ import EmpathyQuotes from "@/components/EmpathyQuotes";
 import BeyondCard from "@/components/BeyondCard";
 import CTACard from "@/components/CTACard";
 import DeepResultCard from "@/components/DeepResultCard";
+import CaseStudyCard from "@/components/CaseStudyCard";
+import AnalyzingInterstitial from "@/components/AnalyzingInterstitial";
+import StickyCtaBar from "@/components/StickyCtaBar";
 import {
   type Answers,
   calcAllStageScores,
@@ -21,8 +24,15 @@ import {
   getWorstStage,
   detectGap,
 } from "@/lib/scoring";
+import { STAGES } from "@/lib/stage-meta";
 import { getBenchmark } from "@/lib/benchmark";
-import { trackDiagnosticComplete, trackRestart } from "@/lib/analytics";
+import { matchCase, isGapMatch } from "@/lib/case-match";
+import { matchLabel } from "@/lib/result-labels";
+import {
+  trackDiagnosticComplete,
+  trackRestart,
+  trackLabelView,
+} from "@/lib/analytics";
 import { track } from "@vercel/analytics";
 
 /** 진입 경로(utm) 파라미터 수집 — 익명 집계용 */
@@ -56,7 +66,13 @@ function saveResult(payload: {
   }
 }
 
-type Phase = "intro" | "quiz" | "result" | "deep-quiz" | "deep-result";
+type Phase =
+  | "intro"
+  | "quiz"
+  | "analyzing"
+  | "result"
+  | "deep-quiz"
+  | "deep-result";
 
 export default function HomePage() {
   const [phase, setPhase] = useState<Phase>("intro");
@@ -71,7 +87,7 @@ export default function HomePage() {
 
   const handleQuizComplete = (ans: Answers) => {
     setAnswers(ans);
-    setPhase("result");
+    setPhase("analyzing");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     // 결과 산출 후 트래킹
@@ -86,6 +102,10 @@ export default function HomePage() {
       hasGap: gapResult?.hasGap ?? false,
     });
 
+    // 정체성 라벨 산출 후 노출 트래킹 (1회)
+    const label = matchLabel(gapResult, worst);
+    trackLabelView(label.id, label.stageId, gapResult?.hasGap ?? false);
+
     // 익명 결과 저장 (업계 벤치마크 집계용)
     saveResult({
       stageScores: scores,
@@ -96,6 +116,11 @@ export default function HomePage() {
         : "none",
       hasGap: gapResult?.hasGap ?? false,
     });
+  };
+
+  const handleAnalyzingDone = () => {
+    setPhase("result");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDeepStart = () => {
@@ -135,6 +160,15 @@ export default function HomePage() {
     () => getBenchmark(overallScore, stageScores),
     [overallScore, stageScores]
   );
+  const resultLabel = useMemo(
+    () => matchLabel(gap, worstStage),
+    [gap, worstStage]
+  );
+  const matchedCase = useMemo(() => matchCase(gap, worstStage), [gap, worstStage]);
+  const matchedByGap = useMemo(
+    () => isGapMatch(gap, matchedCase),
+    [gap, matchedCase]
+  );
 
   return (
     <>
@@ -150,13 +184,26 @@ export default function HomePage() {
         />
       )}
 
+      {phase === "analyzing" && (
+        <AnalyzingInterstitial
+          worstStageName={
+            STAGES.find((s) => s.id === worstStage.stageId)?.name ?? ""
+          }
+          worstStageId={worstStage.stageId}
+          hasGap={!!gap?.hasGap}
+          hasCase={!!matchedCase}
+          onDone={handleAnalyzingDone}
+        />
+      )}
+
       {phase === "result" && (
-        <div className="flex flex-col gap-0">
+        <div className="flex flex-col gap-0 pb-32">
           {/* 1. 결과 헤드라인 */}
           <ResultHero
             worstStageId={worstStage.stageId}
             overallScore={overallScore}
             benchmark={benchmark}
+            label={resultLabel}
           />
 
           {/* 2. 레이더 차트 시각화 */}
@@ -196,11 +243,17 @@ export default function HomePage() {
           <PriorityCard
             worstStageId={worstStage.stageId}
             worstScore={worstStage.score}
+            answers={answers}
             benchmark={benchmark}
           />
 
+          {/* 6.5 매칭된 사례 (있을 때만) */}
+          {matchedCase && (
+            <CaseStudyCard caseStudy={matchedCase} matchedByGap={matchedByGap} />
+          )}
+
           {/* 7. 빈틈 진단 (감지된 경우에만) */}
-          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} />}
+          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} answers={answers} />}
 
           {/* 8. 공감 인용 */}
           <EmpathyQuotes worstStageId={worstStage.stageId} />
@@ -218,16 +271,20 @@ export default function HomePage() {
           >
             처음부터 다시 진단하기
           </button>
+
+          {/* 하단 sticky 카톡 CTA */}
+          <StickyCtaBar stageId={worstStage.stageId} gap={gap} />
         </div>
       )}
 
       {phase === "deep-result" && (
-        <div className="flex flex-col gap-0">
+        <div className="flex flex-col gap-0 pb-32">
           {/* 1. 기본 결과 헤드라인 */}
           <ResultHero
             worstStageId={worstStage.stageId}
             overallScore={overallScore}
             benchmark={benchmark}
+            label={resultLabel}
           />
 
           {/* 2. 레이더 차트 */}
@@ -246,11 +303,17 @@ export default function HomePage() {
           <PriorityCard
             worstStageId={worstStage.stageId}
             worstScore={worstStage.score}
+            answers={answers}
             benchmark={benchmark}
           />
 
+          {/* 6.5 매칭된 사례 (있을 때만) */}
+          {matchedCase && (
+            <CaseStudyCard caseStudy={matchedCase} matchedByGap={matchedByGap} />
+          )}
+
           {/* 7. 빈틈 진단 */}
-          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} />}
+          {gap && gap.hasGap && <GapDiagnosisCard gap={gap} answers={answers} />}
 
           {/* 8. 공감 인용 */}
           <EmpathyQuotes worstStageId={worstStage.stageId} />
@@ -268,6 +331,9 @@ export default function HomePage() {
           >
             처음부터 다시 진단하기
           </button>
+
+          {/* 하단 sticky 카톡 CTA */}
+          <StickyCtaBar stageId={worstStage.stageId} gap={gap} />
         </div>
       )}
     </>
