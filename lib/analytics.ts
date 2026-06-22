@@ -16,12 +16,19 @@ export function trackDiagnosticStart() {
   track("diagnostic_start");
 }
 
-/** 개별 문항 응답 */
-export function trackQuizAnswer(questionId: string, stageId: number) {
+/** 개별 문항 응답 (step 위치 포함 — 문항별 이탈 퍼널 분석용) */
+export function trackQuizAnswer(
+  questionId: string,
+  stageId: number,
+  opts?: { stepIndex?: number; totalSteps?: number; context?: "quick" | "deep" }
+) {
   track("quiz_answer", {
     questionId,
     stageId,
     step: `${stageId}_${questionId}`,
+    stepIndex: opts?.stepIndex ?? -1,
+    totalSteps: opts?.totalSteps ?? -1,
+    context: opts?.context ?? "quick",
   });
 }
 

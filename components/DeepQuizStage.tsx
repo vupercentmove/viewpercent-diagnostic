@@ -13,7 +13,7 @@ import {
   autoAdvanceDelay,
 } from "@/lib/quiz-navigation";
 import {
-  progressPercent,
+  endowedProgress,
   hasCrossedHalf,
   achievementLabel,
 } from "@/lib/progress";
@@ -40,13 +40,19 @@ export default function DeepQuizStage({
   const total = questions.length;
   const q = questions[cursor];
   const answeredCount = Object.keys(answers).length;
-  const progress = progressPercent(answeredCount, total);
+  const barWidth = endowedProgress(answeredCount, total);
   const onLast = isLastQuestion(cursor, total);
   const currentAnswered = answers[q.id] !== undefined;
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shownHalfRef = useRef(false);
   const prevAnsweredRef = useRef(0);
+
+  // 문항 전환 시 새 문항으로 포커스 이동
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    cardRef.current?.focus({ preventScroll: true });
+  }, [cursor]);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current !== null) {
@@ -59,7 +65,11 @@ export default function DeepQuizStage({
 
   const applyAnswer = useCallback(
     (question: DeepQuestion, score: number) => {
-      trackQuizAnswer(question.id, stageId);
+      trackQuizAnswer(question.id, stageId, {
+        stepIndex: cursor,
+        totalSteps: total,
+        context: "deep",
+      });
 
       const wasAnswered = answers[question.id] !== undefined;
       const prevAnswered = prevAnsweredRef.current;
@@ -146,10 +156,17 @@ export default function DeepQuizStage({
             {answeredCount}/{total}
           </span>
         </div>
-        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-1 bg-gray-100 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-valuenow={answeredCount}
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuetext={`${total}문항 중 ${answeredCount}문항 완료`}
+        >
           <div
             className="h-full bg-vp-blue progress-fill"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${barWidth}%` }}
           />
         </div>
       </div>
@@ -164,6 +181,8 @@ export default function DeepQuizStage({
       {/* 현재 심화 문항 1개 */}
       <DeepQuestionCard
         key={q.id}
+        cardRef={cardRef}
+        stepLabel={`심화 문항 ${cursor + 1} / ${total}`}
         question={q}
         answer={answers[q.id]}
         onYn={handleYn}
@@ -175,14 +194,14 @@ export default function DeepQuizStage({
         {cursor === 0 ? (
           <button
             onClick={onCancel}
-            className="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
+            className="px-4 py-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
           >
             건너뛰기
           </button>
         ) : (
           <button
             onClick={handlePrev}
-            className="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
+            className="px-4 py-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
           >
             이전
           </button>
@@ -191,7 +210,7 @@ export default function DeepQuizStage({
           <button
             onClick={handleComplete}
             disabled={!currentAnswered}
-            className="px-5 py-2.5 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            className="px-5 py-3 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             심화 결과 보기
           </button>
@@ -210,14 +229,26 @@ function DeepQuestionCard({
   answer,
   onYn,
   onLikert,
+  cardRef,
+  stepLabel,
 }: {
   question: DeepQuestion;
   answer: number | undefined;
   onYn: (id: string, a: "yes" | "no") => void;
   onLikert: (id: string, v: number) => void;
+  cardRef: React.RefObject<HTMLDivElement>;
+  stepLabel: string;
 }) {
+  const btnBase =
+    "rounded-lg border text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-1";
   return (
-    <div className="p-4 bg-gray-50 rounded-lg">
+    <div
+      ref={cardRef}
+      tabIndex={-1}
+      role="group"
+      aria-label={stepLabel}
+      className="p-4 bg-gray-50 rounded-lg focus:outline-none"
+    >
       <div className="flex items-center gap-2 mb-2">
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 font-medium">
           {question.subArea}
@@ -226,10 +257,12 @@ function DeepQuestionCard({
       <p className="text-[14.5px] leading-relaxed mb-3">{question.text}</p>
 
       {question.answerType === "yn" ? (
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="radiogroup" aria-label={question.text}>
           <button
+            role="radio"
+            aria-checked={answer === 100}
             onClick={() => onYn(question.id, "yes")}
-            className={`flex-1 h-[38px] rounded-lg border text-[13px] ${
+            className={`flex-1 h-[44px] ${btnBase} ${
               answer === 100
                 ? "bg-vp-navy text-white border-vp-navy"
                 : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
@@ -238,8 +271,10 @@ function DeepQuestionCard({
             네
           </button>
           <button
+            role="radio"
+            aria-checked={answer === 0}
             onClick={() => onYn(question.id, "no")}
-            className={`flex-1 h-[38px] rounded-lg border text-[13px] ${
+            className={`flex-1 h-[44px] ${btnBase} ${
               answer === 0
                 ? "bg-red-50 text-red-800 border-red-300"
                 : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
@@ -250,14 +285,17 @@ function DeepQuestionCard({
         </div>
       ) : (
         <div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5" role="radiogroup" aria-label={question.text}>
             {[1, 2, 3, 4, 5].map((v) => {
               const score = [0, 25, 50, 75, 100][v - 1];
               return (
                 <button
                   key={v}
+                  role="radio"
+                  aria-checked={answer === score}
+                  aria-label={`${v}점`}
                   onClick={() => onLikert(question.id, v)}
-                  className={`flex-1 h-[42px] rounded-lg border text-[13px] ${
+                  className={`flex-1 h-[48px] ${btnBase} ${
                     answer === score
                       ? "bg-vp-blue text-white border-vp-blue"
                       : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"

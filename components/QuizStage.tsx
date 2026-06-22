@@ -14,6 +14,7 @@ import {
 } from "@/lib/quiz-navigation";
 import {
   progressPercent,
+  endowedProgress,
   hasCrossedHalf,
   achievementLabel,
 } from "@/lib/progress";
@@ -31,7 +32,7 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
   const q = QUICK_QUESTIONS[cursor];
   const stage = STAGES.find((s) => s.id === q.stageId)!;
   const answeredCount = Object.keys(answers).length;
-  const progress = progressPercent(answeredCount, total);
+  const barWidth = endowedProgress(answeredCount, total);
   const onLast = isLastQuestion(cursor, total);
   const currentAnswered = answers[q.id] !== undefined;
 
@@ -39,6 +40,12 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shownHalfRef = useRef(false);
   const prevAnsweredRef = useRef(0);
+
+  // 문항 전환 시 새 문항으로 포커스 이동 (자동전진·이전 모두 — 키보드/스크린리더 컨텍스트 유지)
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    cardRef.current?.focus({ preventScroll: true });
+  }, [cursor]);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current !== null) {
@@ -54,7 +61,11 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
   const applyAnswer = useCallback(
     (question: Question, score: number) => {
       // 타이머 즉시 호출 — 타이머가 취소돼도 이벤트 유실 방지
-      trackQuizAnswer(question.id, question.stageId);
+      trackQuizAnswer(question.id, question.stageId, {
+        stepIndex: cursor,
+        totalSteps: total,
+        context: "quick",
+      });
 
       // 이전에 답이 있던 문항(=수정)인지 판단 — 루프 방지의 실제 메커니즘
       const wasAnswered = answers[question.id] !== undefined;
@@ -126,10 +137,17 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
             {answeredCount}/{total}
           </span>
         </div>
-        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-1 bg-gray-100 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-valuenow={answeredCount}
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuetext={`${total}문항 중 ${answeredCount}문항 완료`}
+        >
           <div
             className="h-full bg-vp-blue progress-fill"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${barWidth}%` }}
           />
         </div>
       </div>
@@ -152,6 +170,8 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
       {/* 현재 문항 1개 (key로 전환 애니메이션) */}
       <QuestionCard
         key={q.id}
+        cardRef={cardRef}
+        stepLabel={`문항 ${cursor + 1} / ${total}`}
         question={q}
         answer={answers[q.id]}
         onYn={handleYnAnswer}
@@ -193,21 +213,35 @@ function QuestionCard({
   answer,
   onYn,
   onLikert,
+  cardRef,
+  stepLabel,
 }: {
   question: Question;
   answer: number | undefined;
   onYn: (id: string, a: "yes" | "no") => void;
   onLikert: (id: string, v: number) => void;
+  cardRef: React.RefObject<HTMLDivElement>;
+  stepLabel: string;
 }) {
+  const btnBase =
+    "rounded-lg border text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-1";
   return (
-    <div className="p-4 bg-gray-50 rounded-lg">
+    <div
+      ref={cardRef}
+      tabIndex={-1}
+      role="group"
+      aria-label={stepLabel}
+      className="p-4 bg-gray-50 rounded-lg focus:outline-none"
+    >
       <p className="text-[14.5px] leading-relaxed mb-3">{question.text}</p>
 
       {question.answerType === "yn" ? (
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="radiogroup" aria-label={question.text}>
           <button
+            role="radio"
+            aria-checked={answer === ynToScore(question.id, "yes")}
             onClick={() => onYn(question.id, "yes")}
-            className={`flex-1 h-[44px] rounded-lg border text-[13px] ${
+            className={`flex-1 h-[44px] ${btnBase} ${
               answer !== undefined &&
               answer === ynToScore(question.id, "yes")
                 ? "bg-vp-navy text-white border-vp-navy"
@@ -217,8 +251,10 @@ function QuestionCard({
             네
           </button>
           <button
+            role="radio"
+            aria-checked={answer === ynToScore(question.id, "no")}
             onClick={() => onYn(question.id, "no")}
-            className={`flex-1 h-[44px] rounded-lg border text-[13px] ${
+            className={`flex-1 h-[44px] ${btnBase} ${
               answer !== undefined &&
               answer === ynToScore(question.id, "no")
                 ? "bg-red-50 text-red-800 border-red-300"
@@ -230,12 +266,15 @@ function QuestionCard({
         </div>
       ) : (
         <div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5" role="radiogroup" aria-label={question.text}>
             {[1, 2, 3, 4, 5].map((v) => (
               <button
                 key={v}
+                role="radio"
+                aria-checked={answer === likertToScore(v)}
+                aria-label={`${v}점`}
                 onClick={() => onLikert(question.id, v)}
-                className={`flex-1 h-[48px] rounded-lg border text-[13px] ${
+                className={`flex-1 h-[48px] ${btnBase} ${
                   answer === likertToScore(v)
                     ? "bg-vp-blue text-white border-vp-blue"
                     : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"

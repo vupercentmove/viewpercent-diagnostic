@@ -1,9 +1,24 @@
 /** 성취형 진행바 — 순수 함수 */
 
-/** 진행률(%) — total<=0이면 0 */
+/** 진행률(%) — total<=0이면 0 (로직/판정용 실제 비율) */
 export function progressPercent(answered: number, total: number): number {
   if (total <= 0) return 0;
   return Math.round((answered / total) * 100);
+}
+
+/**
+ * 시각용 '부여된 진척(endowed progress)' 진행률 — 시작부터 base만큼 채워 보이게 한다.
+ * 빈 진행바보다 이미 시작된 진행바가 완주율을 높인다(Nunes & Dreze).
+ * 0개 → base, total개 → 100. (판정엔 progressPercent을 쓰고, 막대 width에만 사용)
+ */
+export function endowedProgress(
+  answered: number,
+  total: number,
+  base = 12
+): number {
+  if (total <= 0) return base;
+  const ratio = Math.max(0, Math.min(1, answered / total));
+  return Math.round(base + (100 - base) * ratio);
 }
 
 /**
