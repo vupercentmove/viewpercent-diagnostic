@@ -83,23 +83,19 @@ export interface GapDiagnosis {
 /**
  * 빈틈 진단: 자기인식과 데이터의 차이를 감지
  *
- * 로직:
- * - Stage 1 관련 문항(q1a, q1b)에서 "예"가 2개 → 고객은 "광고 효율"이 1순위 고민
- * - 실제 점수는 다른 Stage가 더 낮을 수 있음
- * - 이 차이를 찾아서 메시지로 전달
+ * 감지 패턴 (우선순위 순):
+ * 1. Stage 1 착각 — 광고비 탓이라고 느끼지만 실제 병목은 다른 단계
+ * 2. Stage 6 체념 — 재구매는 원래 없다고 체념했지만 실제 병목은 앞 단계
+ * 3. Stage 2 착각 — 브랜딩이 약해서 못 판다고 느끼지만 실제 병목은 다른 단계
+ * 4. Stage 4 착각 — 결제/장바구니가 문제라고 느끼지만 실제 병목은 다른 단계
  */
 export function detectGap(answers: Answers): GapDiagnosis | null {
   const stageScores = calcAllStageScores(answers);
   const actualWorstObj = getWorstStage(stageScores);
 
-  // Stage 1 점수 (광고 효율 인식)
+  // ── 패턴 1: Stage 1 착각 (광고 효율 탓) ──
   const stage1Score = stageScores.find((s) => s.stageId === 1)?.score ?? 50;
-
-  // "광고비 고민"이 체감되는지 (Stage 1 점수가 낮으면 고객이 광고를 문제로 인식)
-  const perceivedWorst = stage1Score <= 30 ? 1 : actualWorstObj.stageId;
-
-  // 빈틈: 고객은 Stage 1이 문제라고 느끼지만, 실제로는 다른 Stage가 더 약함
-  if (perceivedWorst === 1 && actualWorstObj.stageId !== 1) {
+  if (stage1Score <= 30 && actualWorstObj.stageId !== 1) {
     const actualStage = STAGES.find((s) => s.id === actualWorstObj.stageId)!;
     return {
       perceivedWorst: 1,
@@ -109,14 +105,42 @@ export function detectGap(answers: Answers): GapDiagnosis | null {
     };
   }
 
-  // Stage 6 체념 패턴: q6b에 "예" (체념) + Stage 6 점수가 실제로 낮음
+  // ── 패턴 2: Stage 6 체념 (재구매 포기) ──
+  // q6b는 REVERSE_YN — "예"(score=0)가 "재구매는 원래 없어"라는 체념 신호
   const q6bScore = answers["q6b"];
   if (q6bScore === 0 && actualWorstObj.stageId !== 6) {
+    const actualStage = STAGES.find((s) => s.id === actualWorstObj.stageId)!;
     return {
       perceivedWorst: 6,
       actualWorst: actualWorstObj.stageId,
       hasGap: true,
-      message: `재구매가 없다고 체념하고 계셨지만, 진단 결과는 그 전 단계에서 이미 고객을 놓치고 있을 수 있다고 말합니다.`,
+      message: `재구매가 없다고 체념하고 계셨지만, 진단 결과는 그보다 '${actualStage.name}' 단계에서 먼저 고객을 놓치고 있을 수 있다고 말합니다.`,
+    };
+  }
+
+  // ── 패턴 3: Stage 2 착각 (브랜드 인지 약함 탓) ──
+  // stage2Score가 매우 낮으면 "브랜딩이 문제"라고 인식하고 있는 상태
+  const stage2Score = stageScores.find((s) => s.stageId === 2)?.score ?? 50;
+  if (stage2Score <= 30 && actualWorstObj.stageId !== 2) {
+    const actualStage = STAGES.find((s) => s.id === actualWorstObj.stageId)!;
+    return {
+      perceivedWorst: 2,
+      actualWorst: actualWorstObj.stageId,
+      hasGap: true,
+      message: `브랜드 인지가 약해서 못 파는 것 같다고 느끼셨지만, 진단 결과는 '${actualStage.name}' 단계가 더 약하다고 말합니다. 브랜드 작업보다 이 병목을 먼저 해결하면 같은 유입에서 더 많이 팔 수 있어요.`,
+    };
+  }
+
+  // ── 패턴 4: Stage 4 착각 (결제·장바구니 탓) ──
+  // stage4Score가 매우 낮으면 "장바구니 이탈이 문제"라고 인식하고 있는 상태
+  const stage4Score = stageScores.find((s) => s.stageId === 4)?.score ?? 50;
+  if (stage4Score <= 30 && actualWorstObj.stageId !== 4) {
+    const actualStage = STAGES.find((s) => s.id === actualWorstObj.stageId)!;
+    return {
+      perceivedWorst: 4,
+      actualWorst: actualWorstObj.stageId,
+      hasGap: true,
+      message: `결제 과정에서 장바구니 이탈이 많다고 느끼셨지만, 진단 결과는 '${actualStage.name}' 단계가 더 약하다고 말합니다. 그 단계를 먼저 보완해야 장바구니에 담기는 숫자 자체가 늘어납니다.`,
     };
   }
 

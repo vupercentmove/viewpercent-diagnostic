@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
-import { likertToScore, type Answers } from "@/lib/scoring";
+import { likertToScore, ynToScore, type Answers } from "@/lib/scoring";
 import { trackQuizAnswer, trackEncouragement } from "@/lib/analytics";
 import {
   nextIndex,
@@ -34,6 +34,7 @@ export default function DeepQuizStage({
   const [cursor, setCursor] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [showEncouragement, setShowEncouragement] = useState(false);
+  const [srMessage, setSrMessage] = useState("");
 
   const questions = getDeepQuestionsByStage(stageId);
   const stage = STAGES.find((s) => s.id === stageId)!;
@@ -97,6 +98,10 @@ export default function DeepQuizStage({
         advanceTimer.current = setTimeout(() => {
           setCursor((c) => nextIndex(c, total));
         }, autoAdvanceDelay(question.answerType));
+      }
+
+      if (!wasAnswered && isLastQuestion(cursor, total)) {
+        setSrMessage("마지막 문항 답변 완료. 심화 결과 보기 버튼이 활성화됩니다.");
       }
     },
     [answers, cursor, total, stageId, clearAdvanceTimer]
@@ -189,6 +194,11 @@ export default function DeepQuizStage({
         onLikert={handleLikert}
       />
 
+      {/* 스크린리더 알림 */}
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {srMessage}
+      </span>
+
       {/* 버튼 */}
       <div className="flex justify-between gap-2.5 mt-5">
         {cursor === 0 ? (
@@ -241,13 +251,39 @@ function DeepQuestionCard({
 }) {
   const btnBase =
     "rounded-lg border text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-1";
+
+  // 심화 yn 문항은 모두 정방향 (예=100, 아니요=0)
+  const handleYnKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const options: Array<"yes" | "no"> = ["yes", "no"];
+    const ci = answer === 100 ? 0 : answer === 0 ? 1 : -1;
+    const next =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? (ci === -1 ? 0 : (ci + 1) % 2)
+        : (ci === -1 ? 1 : (ci - 1 + 2) % 2);
+    onYn(question.id, options[next]);
+  };
+
+  const handleLikertKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const scores = [0, 25, 50, 75, 100];
+    const ci = answer !== undefined ? scores.indexOf(answer) : -1;
+    const next =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? (ci === -1 ? 0 : Math.min(ci + 1, 4))
+        : (ci === -1 ? 4 : Math.max(ci - 1, 0));
+    onLikert(question.id, next + 1);
+  };
+
   return (
     <div
       ref={cardRef}
       tabIndex={-1}
       role="group"
-      aria-label={stepLabel}
-      className="p-4 bg-gray-50 rounded-lg focus:outline-none"
+      aria-label={`${stepLabel}: ${question.text}`}
+      className="p-4 bg-gray-50 rounded-lg focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-2"
     >
       <div className="flex items-center gap-2 mb-2">
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 font-medium">
@@ -257,10 +293,16 @@ function DeepQuestionCard({
       <p className="text-[14.5px] leading-relaxed mb-3">{question.text}</p>
 
       {question.answerType === "yn" ? (
-        <div className="flex gap-2" role="radiogroup" aria-label={question.text}>
+        <div
+          className="flex gap-2"
+          role="radiogroup"
+          aria-label={question.text}
+          onKeyDown={handleYnKeyDown}
+        >
           <button
             role="radio"
             aria-checked={answer === 100}
+            tabIndex={answer === 100 || answer === undefined ? 0 : -1}
             onClick={() => onYn(question.id, "yes")}
             className={`flex-1 h-[44px] ${btnBase} ${
               answer === 100
@@ -273,6 +315,7 @@ function DeepQuestionCard({
           <button
             role="radio"
             aria-checked={answer === 0}
+            tabIndex={answer === 0 ? 0 : -1}
             onClick={() => onYn(question.id, "no")}
             className={`flex-1 h-[44px] ${btnBase} ${
               answer === 0
@@ -285,7 +328,12 @@ function DeepQuestionCard({
         </div>
       ) : (
         <div>
-          <div className="flex gap-1.5" role="radiogroup" aria-label={question.text}>
+          <div
+            className="flex gap-1.5"
+            role="radiogroup"
+            aria-label={question.text}
+            onKeyDown={handleLikertKeyDown}
+          >
             {[1, 2, 3, 4, 5].map((v) => {
               const score = [0, 25, 50, 75, 100][v - 1];
               return (
@@ -293,6 +341,7 @@ function DeepQuestionCard({
                   key={v}
                   role="radio"
                   aria-checked={answer === score}
+                  tabIndex={answer === score || (answer === undefined && v === 1) ? 0 : -1}
                   aria-label={`${v}점`}
                   onClick={() => onLikert(question.id, v)}
                   className={`flex-1 h-[48px] ${btnBase} ${

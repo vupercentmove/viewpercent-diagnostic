@@ -27,6 +27,7 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
   const [cursor, setCursor] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [showEncouragement, setShowEncouragement] = useState(false);
+  const [srMessage, setSrMessage] = useState("");
 
   const total = QUICK_QUESTIONS.length;
   const q = QUICK_QUESTIONS[cursor];
@@ -96,6 +97,11 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
         advanceTimer.current = setTimeout(() => {
           setCursor((c) => nextIndex(c, total));
         }, autoAdvanceDelay(question.answerType));
+      }
+
+      // 마지막 문항 최초 응답 → 스크린리더에 결과 버튼 활성화 알림
+      if (!wasAnswered && isLastQuestion(cursor, total)) {
+        setSrMessage("마지막 문항 답변 완료. 결과 보기 버튼이 활성화됩니다.");
       }
     },
     [answers, cursor, total, clearAdvanceTimer]
@@ -178,6 +184,11 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
         onLikert={handleLikertAnswer}
       />
 
+      {/* 스크린리더 알림 (마지막 문항 응답 완료 시) */}
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {srMessage}
+      </span>
+
       {/* 네비게이션 */}
       <div className="flex justify-between gap-2.5 mt-5">
         {cursor > 0 ? (
@@ -225,25 +236,61 @@ function QuestionCard({
 }) {
   const btnBase =
     "rounded-lg border text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-1";
+
+  const yesScore = ynToScore(question.id, "yes");
+  const noScore = ynToScore(question.id, "no");
+  const ynOptions: Array<"yes" | "no"> = ["yes", "no"];
+
+  // WAI-ARIA radiogroup: 화살표 키로 YN 선택 이동 (roving tabindex 연동)
+  const handleYnKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const ynScores = [yesScore, noScore];
+    const ci = answer !== undefined ? ynScores.indexOf(answer) : -1;
+    const next =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? (ci === -1 ? 0 : (ci + 1) % 2)
+        : (ci === -1 ? 1 : (ci - 1 + 2) % 2);
+    onYn(question.id, ynOptions[next]);
+  };
+
+  // WAI-ARIA radiogroup: 화살표 키로 Likert 선택 이동
+  const handleLikertKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const scores = [0, 25, 50, 75, 100];
+    const ci = answer !== undefined ? scores.indexOf(answer) : -1;
+    const next =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? (ci === -1 ? 0 : Math.min(ci + 1, 4))
+        : (ci === -1 ? 4 : Math.max(ci - 1, 0));
+    onLikert(question.id, next + 1);
+  };
+
   return (
     <div
       ref={cardRef}
       tabIndex={-1}
       role="group"
-      aria-label={stepLabel}
-      className="p-4 bg-gray-50 rounded-lg focus:outline-none"
+      aria-label={`${stepLabel}: ${question.text}`}
+      className="p-4 bg-gray-50 rounded-lg focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-2"
     >
       <p className="text-[14.5px] leading-relaxed mb-3">{question.text}</p>
 
       {question.answerType === "yn" ? (
-        <div className="flex gap-2" role="radiogroup" aria-label={question.text}>
+        <div
+          className="flex gap-2"
+          role="radiogroup"
+          aria-label={question.text}
+          onKeyDown={handleYnKeyDown}
+        >
           <button
             role="radio"
-            aria-checked={answer === ynToScore(question.id, "yes")}
+            aria-checked={answer === yesScore}
+            tabIndex={answer === yesScore || answer === undefined ? 0 : -1}
             onClick={() => onYn(question.id, "yes")}
             className={`flex-1 h-[44px] ${btnBase} ${
-              answer !== undefined &&
-              answer === ynToScore(question.id, "yes")
+              answer !== undefined && answer === yesScore
                 ? "bg-vp-navy text-white border-vp-navy"
                 : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
             }`}
@@ -252,11 +299,11 @@ function QuestionCard({
           </button>
           <button
             role="radio"
-            aria-checked={answer === ynToScore(question.id, "no")}
+            aria-checked={answer === noScore}
+            tabIndex={answer === noScore ? 0 : -1}
             onClick={() => onYn(question.id, "no")}
             className={`flex-1 h-[44px] ${btnBase} ${
-              answer !== undefined &&
-              answer === ynToScore(question.id, "no")
+              answer !== undefined && answer === noScore
                 ? "bg-red-50 text-red-800 border-red-300"
                 : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
             }`}
@@ -266,23 +313,32 @@ function QuestionCard({
         </div>
       ) : (
         <div>
-          <div className="flex gap-1.5" role="radiogroup" aria-label={question.text}>
-            {[1, 2, 3, 4, 5].map((v) => (
-              <button
-                key={v}
-                role="radio"
-                aria-checked={answer === likertToScore(v)}
-                aria-label={`${v}점`}
-                onClick={() => onLikert(question.id, v)}
-                className={`flex-1 h-[48px] ${btnBase} ${
-                  answer === likertToScore(v)
-                    ? "bg-vp-blue text-white border-vp-blue"
-                    : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
+          <div
+            className="flex gap-1.5"
+            role="radiogroup"
+            aria-label={question.text}
+            onKeyDown={handleLikertKeyDown}
+          >
+            {[1, 2, 3, 4, 5].map((v) => {
+              const score = likertToScore(v);
+              return (
+                <button
+                  key={v}
+                  role="radio"
+                  aria-checked={answer === score}
+                  tabIndex={answer === score || (answer === undefined && v === 1) ? 0 : -1}
+                  aria-label={`${v}점`}
+                  onClick={() => onLikert(question.id, v)}
+                  className={`flex-1 h-[48px] ${btnBase} ${
+                    answer === score
+                      ? "bg-vp-blue text-white border-vp-blue"
+                      : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
+                  }`}
+                >
+                  {v}
+                </button>
+              );
+            })}
           </div>
           <div className="flex justify-between text-[11px] text-gray-400 mt-1.5 px-0.5">
             <span>전혀 아님</span>

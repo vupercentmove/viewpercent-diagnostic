@@ -27,7 +27,9 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
     data.map((_, i) => point(i, radius(i)).join(",")).join(" ");
 
   const gridLevels = [0.25, 0.5, 0.75, 1];
-  const dataPoly = toPoly((i) => (R * data[i].score) / 100);
+  // score=0이면 최소 2px 반지름 보장 — 퇴화 폴리곤/점 겹침 방지
+  const safeR = (i: number) => Math.max((R * data[i].score) / 100, 2);
+  const dataPoly = toPoly(safeR);
 
   // 축 라벨 위치/정렬 (각도에 따라 좌/중/우)
   const labelFor = (
@@ -93,7 +95,7 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
 
         {/* 데이터 점 */}
         {data.map((d, i) => {
-          const [x, y] = point(i, (R * d.score) / 100);
+          const [x, y] = point(i, safeR(i));
           return (
             <circle key={i} cx={x} cy={y} r={4} fill="#2A5AE6" stroke="#fff" strokeWidth={2} />
           );
