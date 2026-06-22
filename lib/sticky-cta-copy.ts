@@ -37,7 +37,7 @@ export function buildStickyCtaCopy(
     const actualName = stageName(gap.actualWorst);
     return {
       headline: `생각하신 곳보다 '${actualName}'을 먼저 봐야 해요`,
-      button: `제 '${actualName}' 빈틈, 카톡으로 봐드릴게요`,
+      button: "이 빈틈, 카톡으로 봐드릴게요",
       subnote,
     };
   }
@@ -45,7 +45,7 @@ export function buildStickyCtaCopy(
   const name = stageName(stageId);
   return {
     headline: `'${name}' 단계, 어디부터 손봐야 할까요?`,
-    button: `제 '${name}' 빈틈, 카톡으로 봐드릴게요`,
+    button: "이 빈틈, 카톡으로 봐드릴게요",
     subnote,
   };
 }
