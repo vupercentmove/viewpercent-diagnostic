@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import IntroHero from "@/components/IntroHero";
 import QuizStage from "@/components/QuizStage";
 import DeepQuizStage from "@/components/DeepQuizStage";
@@ -17,6 +17,8 @@ import DeepResultCard from "@/components/DeepResultCard";
 import CaseStudyCard from "@/components/CaseStudyCard";
 import AnalyzingInterstitial from "@/components/AnalyzingInterstitial";
 import StickyCtaBar from "@/components/StickyCtaBar";
+import ShareCardButton from "@/components/ShareCardButton";
+import StrengthBox from "@/components/StrengthBox";
 import {
   type Answers,
   calcAllStageScores,
@@ -33,6 +35,11 @@ import {
   trackRestart,
   trackLabelView,
 } from "@/lib/analytics";
+import {
+  readStateFromUrl,
+  pushResultState,
+  pushInitialState,
+} from "@/lib/url-state";
 import { track } from "@vercel/analytics";
 
 /** 진입 경로(utm) 파라미터 수집 — 익명 집계용 */
@@ -80,6 +87,32 @@ export default function HomePage() {
   const [deepAnswers, setDeepAnswers] = useState<Answers>({});
   const [deepStageId, setDeepStageId] = useState<number>(0);
 
+  // URL에서 결과 복원 (공유 링크 진입 + 새로고침)
+  useEffect(() => {
+    const { answers: savedAnswers, phase: savedPhase } = readStateFromUrl();
+    if (savedAnswers && savedPhase === "result") {
+      setAnswers(savedAnswers);
+      setPhase("analyzing");
+    }
+
+    const handlePop = () => {
+      const { answers: popAnswers, phase: popPhase } = readStateFromUrl();
+      if (popAnswers && popPhase === "result") {
+        setAnswers(popAnswers);
+        setPhase("result");
+      } else {
+        setAnswers({});
+        setDeepAnswers({});
+        setDeepStageId(0);
+        setPhase("intro");
+      }
+      window.scrollTo({ top: 0 });
+    };
+
+    window.addEventListener("popstate", handlePop);
+    return () => window.removeEventListener("popstate", handlePop);
+  }, []);
+
   const handleStart = () => {
     setPhase("quiz");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -88,6 +121,7 @@ export default function HomePage() {
   const handleQuizComplete = (ans: Answers) => {
     setAnswers(ans);
     setPhase("analyzing");
+    pushResultState(ans);
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     // 결과 산출 후 트래킹
@@ -148,6 +182,7 @@ export default function HomePage() {
     setDeepAnswers({});
     setDeepStageId(0);
     setPhase("intro");
+    pushInitialState();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -209,7 +244,13 @@ export default function HomePage() {
           {/* 2. 레이더 차트 시각화 */}
           <RadarChart stageScores={stageScores} />
 
-          {/* 3. Stage별 점수 리스트 */}
+          {/* 3. 강점 인정 박스 */}
+          <StrengthBox
+            stageScores={stageScores}
+            worstStageId={worstStage.stageId}
+          />
+
+          {/* 4. Stage별 점수 리스트 */}
           <StageScoreList stageScores={stageScores} />
 
           {/* 4. 심화 진단 유도 버튼 */}
@@ -264,6 +305,14 @@ export default function HomePage() {
           {/* 10. CTA */}
           <CTACard />
 
+          {/* 결과 공유 카드 */}
+          <ShareCardButton
+            stageScores={stageScores}
+            overallScore={overallScore}
+            label={resultLabel}
+            worstStageId={worstStage.stageId}
+          />
+
           {/* 다시 진단하기 */}
           <button
             onClick={handleRestart}
@@ -292,6 +341,12 @@ export default function HomePage() {
 
           {/* 3. 심화 결과 카드 (새로 추가) */}
           <DeepResultCard stageId={deepStageId} deepAnswers={deepAnswers} />
+
+          {/* 3.5 강점 인정 박스 */}
+          <StrengthBox
+            stageScores={stageScores}
+            worstStageId={worstStage.stageId}
+          />
 
           {/* 4. Stage별 점수 리스트 */}
           <StageScoreList stageScores={stageScores} />
@@ -323,6 +378,14 @@ export default function HomePage() {
 
           {/* 10. CTA */}
           <CTACard />
+
+          {/* 결과 공유 카드 */}
+          <ShareCardButton
+            stageScores={stageScores}
+            overallScore={overallScore}
+            label={resultLabel}
+            worstStageId={worstStage.stageId}
+          />
 
           {/* 다시 진단하기 */}
           <button

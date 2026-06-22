@@ -127,6 +127,21 @@ export function trackStickyCtaClick(stageId: number, byGap: boolean) {
   track("sticky_cta_click", { stageId, byGap: byGap ? "yes" : "no" });
 }
 
+/** 결과 공유 카드 열기 (버튼 클릭) */
+export function trackShareCardOpen() {
+  track("share_card_open");
+}
+
+/** 결과 공유 카드 이미지 기기 저장 */
+export function trackShareCardSave() {
+  track("share_card_save");
+}
+
+/** 결과 공유 카드 Web Share API 공유 */
+export function trackShareCardShare() {
+  track("share_card_share");
+}
+
 /** 누적 진단수 사회적증거 배지 노출 (1회) */
 export function trackSocialProofView(
   variant: "intro" | "result",
