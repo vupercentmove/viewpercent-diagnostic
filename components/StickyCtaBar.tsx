@@ -4,8 +4,7 @@ import { useEffect } from "react";
 import { buildStickyCtaCopy } from "@/lib/sticky-cta-copy";
 import { trackStickyCtaView, trackStickyCtaClick } from "@/lib/analytics";
 import type { GapDiagnosis } from "@/lib/scoring";
-
-const KAKAO_URL = "http://pf.kakao.com/_xbunxen";
+import { KAKAO_URL } from "@/lib/constants";
 
 interface StickyCtaBarProps {
   stageId: number;

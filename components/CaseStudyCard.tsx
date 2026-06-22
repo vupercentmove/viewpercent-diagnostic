@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import type { CaseStudy } from "@/lib/cases";
 import { trackCaseView, trackCaseCtaClick } from "@/lib/analytics";
-
-const KAKAO_URL = "http://pf.kakao.com/_xbunxen";
+import { KAKAO_URL } from "@/lib/constants";
 
 interface Props {
   caseStudy: CaseStudy;

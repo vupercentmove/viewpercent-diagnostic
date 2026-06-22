@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { encodeAnswers, decodeAnswers, buildShareUrl } from "./url-state";
+import {
+  encodeAnswers,
+  decodeAnswers,
+  buildShareUrl,
+  resultPath,
+} from "./url-state";
 import { QUICK_QUESTIONS } from "./questions";
 
 const QUESTION_IDS = QUICK_QUESTIONS.map((q) => q.id);
@@ -59,5 +64,24 @@ describe("decodeAnswers", () => {
     const result = decodeAnswers("0000000000");
     expect(result).not.toBeNull();
     Object.values(result!).forEach((v) => expect(v).toBe(0));
+  });
+});
+
+describe("resultPath / buildShareUrl", () => {
+  it("resultPath는 /result/<encoded> 형식", () => {
+    const answers = makeAnswers([0, 25, 50, 75, 100, 0, 100, 25, 50, 75]);
+    expect(resultPath(answers)).toBe(`/result/${encodeAnswers(answers)}`);
+  });
+
+  it("서버(window 없음)에서 buildShareUrl은 상대 경로 반환", () => {
+    const answers = makeAnswers([100, 0, 75, 25, 50, 100, 0, 75, 25, 50]);
+    // vitest node 환경: window 미정의 → resultPath와 동일
+    expect(buildShareUrl(answers)).toBe(resultPath(answers));
+  });
+
+  it("resultPath ↔ decodeAnswers 라운드트립", () => {
+    const answers = makeAnswers([0, 100, 25, 75, 50, 0, 100, 25, 75, 50]);
+    const encoded = resultPath(answers).replace("/result/", "");
+    expect(decodeAnswers(encoded)).toEqual(answers);
   });
 });

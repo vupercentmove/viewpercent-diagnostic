@@ -1,8 +1,9 @@
+/* @import는 반드시 다른 규칙보다 먼저 와야 브라우저가 인식한다 (CSS 명세) */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 
 :root {
   --color-navy: #06091D;
@@ -46,4 +47,17 @@ button {
 
 .animate-fade-in-up {
   animation: fadeInUp 0.35s ease-out;
+}
+
+/* 모션 민감 사용자 — 입장/펄스 애니메이션 비활성화 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up {
+    animation: none;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

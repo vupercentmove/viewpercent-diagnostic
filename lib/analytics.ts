@@ -5,7 +5,8 @@
  * Vercel 대시보드 > Analytics > Custom Events 에서 확인 가능.
  *
  * 퍼널 흐름:
- * diagnostic_start → quiz_answer (x10) → diagnostic_complete → cta_kakao_click
+ * diagnostic_start → quiz_answer (x10) → diagnostic_complete
+ *   → [deep_diagnostic_start → deep_diagnostic_complete] → cta_kakao_click
  */
 
 import { track } from "@vercel/analytics";
@@ -47,6 +48,16 @@ export function trackCTAClick() {
 /** 다시 진단하기 클릭 */
 export function trackRestart() {
   track("diagnostic_restart");
+}
+
+/** 심화 진단 시작 (최약 Stage 진입) */
+export function trackDeepDiagnosticStart(stageId: number) {
+  track("deep_diagnostic_start", { stageId });
+}
+
+/** 심화 진단 완료 */
+export function trackDeepDiagnosticComplete(stageId: number) {
+  track("deep_diagnostic_complete", { stageId });
 }
 
 /** 특정 Stage 결과 카드 확인 (스크롤 도달) */
@@ -140,6 +151,16 @@ export function trackShareCardSave() {
 /** 결과 공유 카드 Web Share API 공유 */
 export function trackShareCardShare() {
   track("share_card_share");
+}
+
+/** 결과 공유 링크(URL) 복사 */
+export function trackShareUrlCopy(context: "result" | "cta") {
+  track("share_url_copy", { context });
+}
+
+/** 공유 링크로 진입한 수신자(친구 결과 → 내 진단 유도) */
+export function trackShareReferralStart() {
+  track("share_referral_start");
 }
 
 /** 누적 진단수 사회적증거 배지 노출 (1회) */

@@ -30,10 +30,21 @@ export default function IntroHero({ onStart }: IntroHeroProps) {
         있어요.
       </p>
 
-      <p className="text-[13px] leading-relaxed text-white/55 mb-6 border-l-2 border-vp-blue-light/30 pl-3">
+      <p className="text-[13px] leading-relaxed text-white/55 mb-5 border-l-2 border-vp-blue-light/30 pl-3">
         쇼핑은 고객이 가장 까다로워지는 순간이에요. 그 까다로움에 우리
         브랜드가 얼마나 준비돼 있는지, 6단계로 점검합니다.
       </p>
+
+      <div className="mb-6 rounded-lg bg-white/[0.05] px-4 py-3.5">
+        <p className="text-[12px] text-vp-blue-light font-medium mb-1.5">
+          2분 뒤, 이걸 받게 돼요
+        </p>
+        <ul className="text-[12.5px] text-white/70 leading-relaxed space-y-1">
+          <li>· 6단계 중 <strong className="text-white font-medium">매출이 새는 구간</strong></li>
+          <li>· 업계 운영 기준 대비 <strong className="text-white font-medium">내 위치</strong></li>
+          <li>· 지금 가장 먼저 손볼 <strong className="text-white font-medium">1순위 액션</strong></li>
+        </ul>
+      </div>
 
       <div className="flex gap-4 flex-wrap mb-7">
         <div className="text-xs text-white/55">
@@ -64,10 +75,10 @@ export default function IntroHero({ onStart }: IntroHeroProps) {
         onClick={handleStart}
         className="w-full bg-vp-blue hover:bg-vp-blue-hover text-white font-medium text-sm py-3 rounded-lg transition-colors"
       >
-        빠른 진단 시작하기
+        내 브랜드 취약 구간 찾기 →
       </button>
 
-      <p className="text-[11px] text-white/40 text-center mt-3">
+      <p className="text-[11px] text-white/55 text-center mt-3">
         인증 없이 바로 시작 · 결과는 즉시 확인
       </p>
     </section>

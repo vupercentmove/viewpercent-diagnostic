@@ -5,8 +5,11 @@ import { STAGES, type StageMeta } from "./stage-meta";
 
 export type Answers = Record<string, number>; // questionId → score (0~100)
 
-/** yn 문항의 "역방향" 질문 — "예"가 부정적인 질문들 */
-const REVERSE_YN = new Set(["q1a", "q1b", "q5a", "q6b"]);
+/**
+ * yn 문항의 "역방향" 질문 — "예"가 부정적인 질문들.
+ * ⚠️ 스코어링 불변 핵심: 이 세트는 절대 변경 금지 (UI도 ynToScore로만 참조).
+ */
+export const REVERSE_YN = new Set(["q1a", "q1b", "q5a", "q6b"]);
 
 /** yn 답변을 점수로 변환 */
 export function ynToScore(questionId: string, answer: "yes" | "no"): number {

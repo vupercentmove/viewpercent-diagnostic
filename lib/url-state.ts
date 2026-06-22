@@ -63,19 +63,33 @@ export function readStateFromUrl(): {
   };
 }
 
-/** 결과 공유 URL 생성 */
-export function buildShareUrl(answers: Answers): string {
-  if (typeof window === "undefined") return "";
-  const params = new URLSearchParams();
-  params.set("a", encodeAnswers(answers));
-  params.set("phase", "result");
-  return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+/** 결과 공유 경로 (서버/클라 공용) — SSR OG 메타가 붙는 정식 공유 URL */
+export function resultPath(answers: Answers): string {
+  return `/result/${encodeAnswers(answers)}`;
 }
 
-/** 현재 URL을 결과 상태로 업데이트 (pushState) */
+/**
+ * 결과 공유 URL 생성 (절대 URL).
+ * 공유·복사·카톡 ref용. SSR 라우트(/result/[encoded])라 카톡 미리보기(OG)가 붙는다.
+ */
+export function buildShareUrl(answers: Answers): string {
+  if (typeof window === "undefined") return resultPath(answers);
+  return `${window.location.origin}${resultPath(answers)}`;
+}
+
+/**
+ * SPA 내부 결과 상태를 URL에 반영 (pushState).
+ *
+ * 루트(/)에 머무르며 ?a=<enc>&phase=result 쿼리만 붙인다 — readStateFromUrl이
+ * 읽는 형식과 일치해야 뒤로가기/앞으로가기/새로고침 복원이 동작한다.
+ * (공유용 정식 링크는 buildShareUrl()이 만드는 /result/<enc> SSR 경로다.)
+ */
 export function pushResultState(answers: Answers): void {
   if (typeof window === "undefined") return;
-  const url = buildShareUrl(answers);
+  const params = new URLSearchParams(window.location.search);
+  params.set("a", encodeAnswers(answers));
+  params.set("phase", "result");
+  const url = `${window.location.pathname}?${params.toString()}`;
   window.history.pushState({ phase: "result" }, "", url);
 }
 

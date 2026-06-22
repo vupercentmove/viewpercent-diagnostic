@@ -163,7 +163,7 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
         {cursor > 0 ? (
           <button
             onClick={handlePrev}
-            className="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
+            className="px-4 py-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:border-vp-blue"
           >
             이전
           </button>
@@ -174,7 +174,7 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
           <button
             onClick={handleComplete}
             disabled={!currentAnswered}
-            className="px-5 py-2.5 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            className="px-5 py-3 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             결과 보기
           </button>
@@ -207,9 +207,9 @@ function QuestionCard({
         <div className="flex gap-2">
           <button
             onClick={() => onYn(question.id, "yes")}
-            className={`flex-1 h-[38px] rounded-lg border text-[13px] ${
+            className={`flex-1 h-[44px] rounded-lg border text-[13px] ${
               answer !== undefined &&
-              answer === ynScoreForYes(question.id)
+              answer === ynToScore(question.id, "yes")
                 ? "bg-vp-navy text-white border-vp-navy"
                 : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
             }`}
@@ -218,9 +218,9 @@ function QuestionCard({
           </button>
           <button
             onClick={() => onYn(question.id, "no")}
-            className={`flex-1 h-[38px] rounded-lg border text-[13px] ${
+            className={`flex-1 h-[44px] rounded-lg border text-[13px] ${
               answer !== undefined &&
-              answer === ynScoreForNo(question.id)
+              answer === ynToScore(question.id, "no")
                 ? "bg-red-50 text-red-800 border-red-300"
                 : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
             }`}
@@ -235,8 +235,8 @@ function QuestionCard({
               <button
                 key={v}
                 onClick={() => onLikert(question.id, v)}
-                className={`flex-1 h-[42px] rounded-lg border text-[13px] ${
-                  answer === likertToScoreVal(v)
+                className={`flex-1 h-[48px] rounded-lg border text-[13px] ${
+                  answer === likertToScore(v)
                     ? "bg-vp-blue text-white border-vp-blue"
                     : "bg-white border-gray-200 text-gray-700 hover:border-vp-blue"
                 }`}
@@ -255,16 +255,3 @@ function QuestionCard({
   );
 }
 
-/* ── 헬퍼 (active 상태 비교용) ── */
-
-const REVERSE_YN = new Set(["q1a", "q1b", "q5a", "q6b"]);
-
-function ynScoreForYes(qId: string): number {
-  return REVERSE_YN.has(qId) ? 0 : 100;
-}
-function ynScoreForNo(qId: string): number {
-  return REVERSE_YN.has(qId) ? 100 : 0;
-}
-function likertToScoreVal(v: number): number {
-  return [0, 25, 50, 75, 100][v - 1] ?? 50;
-}

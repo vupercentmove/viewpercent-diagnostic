@@ -4,6 +4,14 @@ import {
   buildEcho,
   ECHO_PHRASES,
   LOSS_AVERSION_LINE,
+  REVERSE_YN,
+  ynToScore,
+  likertToScore,
+  calcStageScore,
+  calcAllStageScores,
+  calcOverallScore,
+  getWorstStage,
+  detectGap,
   type Answers,
 } from "@/lib/scoring";
 
@@ -72,5 +80,122 @@ describe("ECHO_PHRASES / LOSS_AVERSION_LINE 무결성", () => {
 
   it("손실회피 문장이 비어 있지 않다", () => {
     expect(LOSS_AVERSION_LINE.length).toBeGreaterThan(0);
+  });
+});
+
+/* ── 스코어링 불변 회귀 안전망 (제약: REVERSE_YN 보존) ── */
+
+describe("REVERSE_YN 불변", () => {
+  it("역방향 문항 세트는 정확히 q1a/q1b/q5a/q6b", () => {
+    expect([...REVERSE_YN].sort()).toEqual(["q1a", "q1b", "q5a", "q6b"]);
+  });
+});
+
+describe("ynToScore", () => {
+  it("정방향(q3a): 예=100, 아니요=0", () => {
+    expect(ynToScore("q3a", "yes")).toBe(100);
+    expect(ynToScore("q3a", "no")).toBe(0);
+  });
+  it("역방향(q1a,q1b,q5a,q6b): 예=0, 아니요=100", () => {
+    for (const id of ["q1a", "q1b", "q5a", "q6b"]) {
+      expect(ynToScore(id, "yes")).toBe(0);
+      expect(ynToScore(id, "no")).toBe(100);
+    }
+  });
+});
+
+describe("likertToScore", () => {
+  it("1~5 → 0,25,50,75,100", () => {
+    expect([1, 2, 3, 4, 5].map(likertToScore)).toEqual([0, 25, 50, 75, 100]);
+  });
+  it("범위 밖 입력은 50으로 안전 폴백", () => {
+    expect(likertToScore(0)).toBe(50);
+    expect(likertToScore(6)).toBe(50);
+  });
+});
+
+describe("calcStageScore / calcAllStageScores", () => {
+  it("미응답 문항은 50으로 간주(평균)", () => {
+    // Stage 1은 q1a,q1b 2문항. 둘 다 미응답 → 50
+    expect(calcStageScore(1, {})).toBe(50);
+  });
+  it("Stage 1 두 문항 평균", () => {
+    // q1a=100, q1b=0 → 평균 50
+    expect(calcStageScore(1, { q1a: 100, q1b: 0 })).toBe(50);
+  });
+  it("6개 Stage 모두 반환", () => {
+    const all = calcAllStageScores({});
+    expect(all.map((s) => s.stageId)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+});
+
+describe("calcOverallScore", () => {
+  it("빈 응답 → 전 Stage 50 → 전체 50", () => {
+    expect(calcOverallScore({})).toBe(50);
+  });
+});
+
+describe("getWorstStage", () => {
+  it("최저 점수 Stage 반환", () => {
+    const scores = [
+      { stageId: 1, score: 80 },
+      { stageId: 2, score: 30 },
+      { stageId: 3, score: 55 },
+    ];
+    expect(getWorstStage(scores)).toEqual({ stageId: 2, score: 30 });
+  });
+  it("동점이면 앞 요소를 유지(결정적)", () => {
+    const scores = [
+      { stageId: 1, score: 40 },
+      { stageId: 2, score: 40 },
+    ];
+    expect(getWorstStage(scores).stageId).toBe(1);
+  });
+});
+
+describe("detectGap", () => {
+  it("빈틈 없음(고른 점수) → null", () => {
+    const answers: Answers = {
+      q1a: 0, q1b: 0, // Stage1 = 50 (역방향이므로 no면 100, yes면 0; 여기선 0,0→ 평균... )
+      q2a: 50,
+      q3a: 100, q3b: 50,
+      q4a: 100, q4b: 100,
+      q5a: 100,
+      q6a: 100, q6b: 100,
+    };
+    // Stage1: q1a,q1b 둘 다 0 → 평균 0 ≤ 30 → perceivedWorst=1
+    // actualWorst도 Stage1(0점)이므로 빈틈 아님
+    expect(detectGap(answers)).toBeNull();
+  });
+
+  it("광고 착각 빈틈: Stage1 낮다고 느끼지만 실제 최약은 다른 Stage", () => {
+    // Stage1 점수는 낮게(<=30) 만들되, 다른 Stage를 더 낮게
+    const answers: Answers = {
+      q1a: 0, q1b: 25, // Stage1 평균 12.5 (<=30)
+      q2a: 0, // Stage2 = 0 (더 낮음) → actualWorst
+      q3a: 100, q3b: 100,
+      q4a: 100, q4b: 100,
+      q5a: 100,
+      q6a: 100, q6b: 100,
+    };
+    const gap = detectGap(answers);
+    expect(gap?.hasGap).toBe(true);
+    expect(gap?.perceivedWorst).toBe(1);
+    expect(gap?.actualWorst).toBe(2);
+  });
+
+  it("q6b 체념 빈틈: 재구매 체념하지만 실제 최약은 6단계가 아님", () => {
+    const answers: Answers = {
+      q1a: 100, q1b: 100, // Stage1 높음(역방향 no→100)
+      q2a: 0, // Stage2 = 0 → actualWorst
+      q3a: 100, q3b: 100,
+      q4a: 100, q4b: 100,
+      q5a: 100,
+      q6a: 100, q6b: 0, // q6b 체념(yes→0), 단 Stage6 평균은 50
+    };
+    const gap = detectGap(answers);
+    expect(gap?.hasGap).toBe(true);
+    expect(gap?.perceivedWorst).toBe(6);
+    expect(gap?.actualWorst).toBe(2);
   });
 });
