@@ -198,4 +198,82 @@ describe("detectGap", () => {
     expect(gap?.perceivedWorst).toBe(6);
     expect(gap?.actualWorst).toBe(2);
   });
+
+  it("Stage2 착각: 브랜드가 약해서 못 판다고 느끼지만 실제 최약은 Stage4", () => {
+    // Stage1 높음(착각1 미발동), Stage6 체념 없음(착각2 미발동)
+    // Stage2 score=25(<=30), Stage4 score=0 → actualWorst=4(≠2)
+    const answers: Answers = {
+      q1a: 100, q1b: 100, // Stage1: 100 (역방향 no→100)
+      q2a: 25,             // Stage2: 25 ≤ 30
+      q3a: 100, q3b: 100, // Stage3: 100
+      q4a: 0,   q4b: 0,   // Stage4: 0 → actualWorst
+      q5a: 100,            // Stage5: 100
+      q6a: 100, q6b: 100, // Stage6: 100
+    };
+    const gap = detectGap(answers);
+    expect(gap?.hasGap).toBe(true);
+    expect(gap?.perceivedWorst).toBe(2);
+    expect(gap?.actualWorst).toBe(4);
+  });
+
+  it("Stage4 착각: 장바구니 이탈이 문제라고 느끼지만 실제 최약은 Stage3", () => {
+    // Stage4 score=25(<=30), Stage3 score=0 → actualWorst=3(≠4)
+    const answers: Answers = {
+      q1a: 100, q1b: 100, // Stage1: 100
+      q2a: 100,            // Stage2: 100
+      q3a: 0,   q3b: 0,   // Stage3: 0 → actualWorst
+      q4a: 25,  q4b: 25,  // Stage4: 25 ≤ 30
+      q5a: 100,            // Stage5: 100
+      q6a: 100, q6b: 100, // Stage6: 100
+    };
+    const gap = detectGap(answers);
+    expect(gap?.hasGap).toBe(true);
+    expect(gap?.perceivedWorst).toBe(4);
+    expect(gap?.actualWorst).toBe(3);
+  });
+
+  it("Stage1 착각이 Stage2 착각보다 우선 적용됨", () => {
+    // Stage1 score=12(<=30) + Stage2 score=25(<=30) 동시 조건
+    // Stage3이 최약 → Stage1 착각(우선순위 1)이 먼저 반환돼야 함
+    const answers: Answers = {
+      q1a: 0,  q1b: 25,  // Stage1: avg(0,25)=12 ≤ 30
+      q2a: 25,           // Stage2: 25 ≤ 30
+      q3a: 0,  q3b: 0,  // Stage3: 0 → actualWorst
+      q4a: 100, q4b: 100,
+      q5a: 100,
+      q6a: 100, q6b: 100,
+    };
+    const gap = detectGap(answers);
+    expect(gap?.perceivedWorst).toBe(1); // Stage1 착각 우선
+    expect(gap?.actualWorst).toBe(3);
+  });
+
+  it("Stage6 체념이 Stage2 착각보다 우선 적용됨", () => {
+    // q6b=0(체념) + Stage2 score=25(<=30) 동시 조건
+    // Stage6 체념(우선순위 2)이 먼저 반환돼야 함
+    const answers: Answers = {
+      q1a: 100, q1b: 100, // Stage1: 100 (착각1 미발동)
+      q2a: 25,            // Stage2: 25 ≤ 30
+      q3a: 0,  q3b: 0,  // Stage3: 0 → actualWorst
+      q4a: 100, q4b: 100,
+      q5a: 100,
+      q6a: 100, q6b: 0,  // q6b 체념
+    };
+    const gap = detectGap(answers);
+    expect(gap?.perceivedWorst).toBe(6); // Stage6 체념 우선
+    expect(gap?.actualWorst).toBe(3);
+  });
+
+  it("어떤 착각 패턴도 해당 없음 → null", () => {
+    // Stage1/2/4 모두 >30, q6b 체념 없음, 점수 고름
+    const answers: Answers = {
+      q1a: 100, q1b: 100, // Stage1: 100
+      q2a: 50,            // Stage2: 50
+      q3a: 50,  q3b: 50, // Stage3: 50
+      q4a: 50,  q4b: 50, // Stage4: 50
+      q5a: 100,           // Stage5: 100
+      q6a: 100, q6b: 100, // Stage6: 100
+    };
+    expect(detectGap(answers)).toBeNull();
+  });
 });
