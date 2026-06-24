@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { STAGES } from "@/lib/stage-meta";
 
 interface RadarChartProps {
@@ -8,6 +9,8 @@ interface RadarChartProps {
 
 /** 의존성 0 순수 SVG 레이더 차트 (recharts 제거 — 번들 ~91KB 절감). */
 export default function RadarChart({ stageScores }: RadarChartProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   const data = stageScores.map(({ stageId, score }) => ({
     name: STAGES.find((s) => s.id === stageId)?.name ?? "",
     score,
@@ -18,7 +21,6 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
   const cy = 140;
   const R = 86;
 
-  // i번째 축의 각도(상단 12시부터 시계방향) 좌표
   const point = (i: number, radius: number): [number, number] => {
     const angle = (-90 + (i * 360) / n) * (Math.PI / 180);
     return [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)];
@@ -31,7 +33,6 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
   const safeR = (i: number) => Math.max((R * data[i].score) / 100, 2);
   const dataPoly = toPoly(safeR);
 
-  // 축 라벨 위치/정렬 (각도에 따라 좌/중/우)
   const labelFor = (
     i: number
   ): {
@@ -48,6 +49,17 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
     return { x, y, anchor, baseline };
   };
 
+  // 툴팁 위치 — 점 기준 위/아래, SVG viewBox(360×290) 내 클램프
+  const tooltipPos = (i: number): { tx: number; ty: number } => {
+    const [px, py] = point(i, safeR(i));
+    const W = 84;
+    const H = 32;
+    const tx = Math.max(4, Math.min(px - W / 2, 360 - W - 4));
+    const rawTy = py < cy ? py + 14 : py - H - 10;
+    const ty = Math.max(4, Math.min(rawTy, 290 - H - 4));
+    return { tx, ty };
+  };
+
   const ariaLabel =
     "6단계 레이더 차트. " +
     data.map((d) => `${d.name} ${d.score}점`).join(", ");
@@ -62,6 +74,7 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
         className="w-full h-auto"
         role="img"
         aria-label={ariaLabel}
+        onClick={() => setActiveIndex(null)}
       >
         {/* 그리드 */}
         {gridLevels.map((lv) => (
@@ -93,14 +106,6 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
           strokeLinejoin="round"
         />
 
-        {/* 데이터 점 */}
-        {data.map((d, i) => {
-          const [x, y] = point(i, safeR(i));
-          return (
-            <circle key={i} cx={x} cy={y} r={4} fill="#2A5AE6" stroke="#fff" strokeWidth={2} />
-          );
-        })}
-
         {/* 축 라벨 */}
         {data.map((d, i) => {
           const { x, y, anchor, baseline } = labelFor(i);
@@ -118,9 +123,72 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
             </text>
           );
         })}
+
+        {/* 데이터 점 + 히트 영역 (hover/tap → 툴팁) */}
+        {data.map((d, i) => {
+          const [x, y] = point(i, safeR(i));
+          const active = activeIndex === i;
+          return (
+            <g
+              key={i}
+              onMouseEnter={() => setActiveIndex(i)}
+              onMouseLeave={() => setActiveIndex(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveIndex(active ? null : i);
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              {/* 터치 44px 히트 영역 */}
+              <circle cx={x} cy={y} r={16} fill="transparent" />
+              <circle
+                cx={x}
+                cy={y}
+                r={active ? 6 : 4}
+                fill={active ? "#1e40af" : "#2A5AE6"}
+                stroke="#fff"
+                strokeWidth={2}
+              />
+            </g>
+          );
+        })}
+
+        {/* 툴팁 (활성 점 위에 렌더 — z-order 최상위) */}
+        {activeIndex !== null && (() => {
+          const d = data[activeIndex];
+          const { tx, ty } = tooltipPos(activeIndex);
+          return (
+            <g style={{ pointerEvents: "none" }}>
+              <rect
+                x={tx} y={ty}
+                width={84} height={32}
+                rx={6}
+                fill="#1e293b"
+                fillOpacity={0.93}
+              />
+              <text
+                x={tx + 42} y={ty + 11}
+                textAnchor="middle"
+                fontSize={9.5}
+                fill="#94a3b8"
+              >
+                {d.name}
+              </text>
+              <text
+                x={tx + 42} y={ty + 24}
+                textAnchor="middle"
+                fontSize={12}
+                fontWeight={700}
+                fill="white"
+              >
+                {d.score}점
+              </text>
+            </g>
+          );
+        })()}
       </svg>
       <p className="text-[11px] text-gray-400 text-center mt-2">
-        안쪽으로 움푹 들어간 곳이 매출이 새는 지점이에요
+        점을 탭하면 점수를 볼 수 있어요
       </p>
     </div>
   );
