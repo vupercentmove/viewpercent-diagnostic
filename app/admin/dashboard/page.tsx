@@ -16,6 +16,7 @@ interface Stats {
   total: number;
   avgScore: number;
   deepRate: number;
+  ctaRate: number;
   stageDistribution: { stageId: number; count: number }[];
   avgStageScores: { stageId: number; avg: number }[];
 }
@@ -99,11 +100,12 @@ export default function Dashboard() {
       {stats && (
         <>
           {/* 상단 지표 */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-4 gap-3 mb-6">
             {[
               { label: "총 완료", value: `${stats.total}건` },
               { label: "평균 점수", value: `${stats.avgScore}점` },
               { label: "심화 진단율", value: `${stats.deepRate}%` },
+              { label: "카톡 CTA 전환율", value: `${stats.ctaRate}%` },
             ].map((m) => (
               <div key={m.label} className="bg-white rounded-xl border border-gray-100 p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{m.value}</p>

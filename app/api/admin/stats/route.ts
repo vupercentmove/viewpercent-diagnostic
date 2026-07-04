@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server";
-import { getStats } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY 미설정" }, { status: 503 });
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    return NextResponse.json({ error: "Supabase 환경변수 미설정" }, { status: 503 });
   }
+
   try {
-    const stats = await getStats();
-    return NextResponse.json(stats);
+    const res = await fetch(`${url}/rest/v1/rpc/get_diagnostic_stats`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: "{}",
+    });
+    if (!res.ok) throw new Error(`RPC 오류: ${res.status}`);
+    const stats = await res.json();
+    return NextResponse.json(stats ?? { total: 0, avgScore: 0, deepRate: 0, ctaRate: 0, stageDistribution: [], avgStageScores: [] });
   } catch (err) {
     console.error("[admin/stats]", err);
     return NextResponse.json({ error: "통계 조회 실패" }, { status: 502 });
