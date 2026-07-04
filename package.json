@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@vercel/analytics": "^1.6.1",
     "next": "14.2.21",
     "react": "^18.3.1",

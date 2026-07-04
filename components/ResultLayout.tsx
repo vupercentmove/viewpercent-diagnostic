@@ -13,6 +13,7 @@ import BeyondCard from "@/components/BeyondCard";
 import CTACard from "@/components/CTACard";
 import CaseStudyCard from "@/components/CaseStudyCard";
 import DeepResultCard from "@/components/DeepResultCard";
+import AiCommentCard from "@/components/AiCommentCard";
 import ShareCardButton from "@/components/ShareCardButton";
 import StickyCtaBar from "@/components/StickyCtaBar";
 import {
@@ -131,6 +132,9 @@ export default function ResultLayout({
           </div>
         </section>
       )}
+
+      {/* 5.5 AI 분석 코멘트 (공유 링크 수신자에게는 미노출) */}
+      {!isShared && <AiCommentCard answers={answers} />}
 
       {/* 6. 액션 추천 */}
       <ActionCards stageScores={stageScores} />
