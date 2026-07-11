@@ -30,6 +30,17 @@ export default function CaseStudyCard({ caseStudy, matchedByGap }: Props) {
         {caseStudy.brandType}
       </h3>
 
+      {caseStudy.echoQuote && (
+        <div className="bg-gray-50 rounded-lg px-3 py-2.5 mb-3">
+          <p className="text-[11px] text-gray-400 mb-1">
+            💬 이커머스 대표 커뮤니티에 실제로 올라온 고민
+          </p>
+          <p className="text-[12.5px] text-gray-600 leading-relaxed">
+            "{caseStudy.echoQuote}"
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         <div className="border-l-2 border-gray-300 pl-3">
           <p className="text-[11px] text-gray-400 mb-0.5">처음 느낀 문제</p>

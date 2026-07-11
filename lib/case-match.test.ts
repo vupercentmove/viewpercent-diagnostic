@@ -51,6 +51,64 @@ describe("matchCase", () => {
     const r = matchCase(null, { stageId: 5 }, [stage3Case, stage2Low]);
     expect(r).toBeNull();
   });
+
+  it("동률 + seedInput 없음 → 항상 배열의 첫 후보(결정적)", () => {
+    const a: CaseStudy = {
+      id: "tie-a", brandType: "B", stageId: 6,
+      symptom: "s", realCause: "r", action: "a", result: "res",
+    };
+    const b: CaseStudy = {
+      id: "tie-b", brandType: "B", stageId: 6,
+      symptom: "s", realCause: "r", action: "a", result: "res",
+    };
+    const r1 = matchCase(null, { stageId: 6 }, [a, b]);
+    const r2 = matchCase(null, { stageId: 6 }, [a, b]);
+    expect(r1?.id).toBe("tie-a");
+    expect(r2?.id).toBe("tie-a");
+  });
+
+  it("동률 + seedInput 동일 → 항상 같은 사례(같은 응답이면 같은 결과, hydration-safe)", () => {
+    const a: CaseStudy = {
+      id: "tie-a", brandType: "B", stageId: 6,
+      symptom: "s", realCause: "r", action: "a", result: "res",
+    };
+    const b: CaseStudy = {
+      id: "tie-b", brandType: "B", stageId: 6,
+      symptom: "s", realCause: "r", action: "a", result: "res",
+    };
+    const seed = JSON.stringify({ q1: "yes", q2: "no" });
+    const r1 = matchCase(null, { stageId: 6 }, [a, b], seed);
+    const r2 = matchCase(null, { stageId: 6 }, [a, b], seed);
+    expect(r1?.id).toBe(r2?.id);
+  });
+
+  it("동률 + seedInput 다름 → 서로 다른 사례가 나올 수 있다(둘 다 존재하는 후보 중 하나)", () => {
+    const a: CaseStudy = {
+      id: "tie-a", brandType: "B", stageId: 6,
+      symptom: "s", realCause: "r", action: "a", result: "res",
+    };
+    const b: CaseStudy = {
+      id: "tie-b", brandType: "B", stageId: 6,
+      symptom: "s", realCause: "r", action: "a", result: "res",
+    };
+    const ids = new Set(
+      Array.from({ length: 20 }, (_, i) =>
+        matchCase(null, { stageId: 6 }, [a, b], `seed-${i}`)?.id
+      )
+    );
+    // 후보가 2개뿐이므로 20개 시드로 돌리면 둘 다 최소 한 번은 나와야 한다
+    expect(ids.has("tie-a")).toBe(true);
+    expect(ids.has("tie-b")).toBe(true);
+    // 나온 값은 항상 두 후보 중 하나
+    Array.from(ids).forEach((id) => {
+      expect(["tie-a", "tie-b"]).toContain(id);
+    });
+  });
+
+  it("priority가 다르면 seedInput이 있어도 priority가 우선(동률일 때만 seed 적용)", () => {
+    const r = matchCase(null, { stageId: 2 }, [stage2Low, stage2High], "any-seed");
+    expect(r?.id).toBe("s2-high");
+  });
 });
 
 describe("isGapMatch", () => {

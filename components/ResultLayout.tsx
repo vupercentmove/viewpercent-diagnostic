@@ -57,7 +57,10 @@ export default function ResultLayout({
     [overallScore, stageScores]
   );
   const resultLabel = useMemo(() => matchLabel(gap, worstStage), [gap, worstStage]);
-  const matchedCase = useMemo(() => matchCase(gap, worstStage), [gap, worstStage]);
+  const matchedCase = useMemo(
+    () => matchCase(gap, worstStage, undefined, JSON.stringify(answers)),
+    [gap, worstStage, answers]
+  );
   const matchedByGap = useMemo(
     () => isGapMatch(gap, matchedCase),
     [gap, matchedCase]
