@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ConsultingToolReference from "@/components/admin/ConsultingToolReference";
 
 const STAGE_NAMES: Record<number, string> = {
   1: "욕구·검색·방문",
@@ -175,6 +176,9 @@ export default function Dashboard() {
           </div>
         </>
       )}
+
+      {/* 컨설팅 도구 참고 (내부용) — 통계 로드와 무관하게 항상 노출 */}
+      {!loading && <ConsultingToolReference />}
     </div>
   );
 }
