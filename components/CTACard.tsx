@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { trackCTAClick, trackShareUrlCopy } from "@/lib/analytics";
 import { KAKAO_URL, buildKakaoUrl } from "@/lib/constants";
 import { buildShareUrl } from "@/lib/url-state";
-import type { Answers } from "@/lib/scoring";
+import {
+  calcAllStageScores,
+  calcOverallScore,
+  getWorstStage,
+  type Answers,
+} from "@/lib/scoring";
 
 interface CTACardProps {
   answers: Answers;
@@ -70,7 +75,14 @@ export default function CTACard({ answers }: CTACardProps) {
         href={kakaoHref}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={trackCTAClick}
+        onClick={() => {
+          const worst = getWorstStage(calcAllStageScores(answers));
+          trackCTAClick({
+            overallScore: calcOverallScore(answers),
+            worstStageId: worst.stageId,
+            worstScore: worst.score,
+          });
+        }}
         className="block w-full text-center bg-[#FEE500] text-[#191919] font-medium text-sm py-3.5 rounded-lg hover:bg-[#F5DC00] transition-colors"
       >
         내 약점 단계, 같이 해결책 찾기 →

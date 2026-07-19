@@ -47,9 +47,21 @@ export function trackDiagnosticComplete(data: {
   });
 }
 
-/** 카카오톡 CTA 클릭 */
-export function trackCTAClick() {
-  track("cta_kakao_click");
+/** 카카오톡 CTA 클릭 — 어떤 결과가 상담으로 이어지는지 보려면 결과 컨텍스트가 필요하다 */
+export function trackCTAClick(data?: {
+  overallScore: number;
+  worstStageId: number;
+  worstScore: number;
+}) {
+  if (!data) {
+    track("cta_kakao_click");
+    return;
+  }
+  track("cta_kakao_click", {
+    overallScore: data.overallScore,
+    worstStage: data.worstStageId,
+    worstScore: data.worstScore,
+  });
 }
 
 /** 다시 진단하기 클릭 */
