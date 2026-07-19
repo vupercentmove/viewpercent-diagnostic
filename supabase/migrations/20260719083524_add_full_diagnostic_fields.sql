@@ -20,3 +20,8 @@ alter table diagnostic_results
 --   2. 맥미니 벤치마크 집계 잡/스크립트 (이 레포 밖) — task-8-brief.md 핸드오프 항목.
 -- 이 레포 안에서 코드로 고칠 수 있는 base 집계(lib/supabase-admin.ts의 getStats())는
 -- 이미 Task 8 커밋에 반영되어 있다.
+--
+-- ⚠️ 배포 순서(중요): 이 마이그레이션을 운영 Supabase에 적용하고 PostgREST 스키마 캐시가
+-- 갱신된 뒤에만 이 브랜치 코드를 배포할 것. 그 전에 코드가 먼저 배포되면
+-- insertDiagnosticResult()가 존재하지 않는 컬럼 키를 전송해 quick·full 모든 저장이
+-- PGRST204로 실패함.
