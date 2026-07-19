@@ -50,16 +50,31 @@ export default function Dashboard() {
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  /** 결과 목록만 실패한 경우 — 통계는 살아있으므로 대시보드는 유지하고 이 섹션에만 표시 */
+  const [resultsError, setResultsError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/admin/stats").then((r) => r.json()),
-      fetch("/api/admin/results?limit=30").then((r) => r.json()),
-    ])
+    const load = async (path: string) => {
+      const res = await fetch(path);
+      const body = await res.json().catch(() => null);
+      return { ok: res.ok, status: res.status, body };
+    };
+
+    Promise.all([load("/api/admin/stats"), load("/api/admin/results?limit=30")])
       .then(([s, r]) => {
-        if (s.error) throw new Error(s.error);
-        setStats(s);
-        setResults(Array.isArray(r) ? r : []);
+        // 통계 실패는 대시보드 전체 에러
+        if (!s.ok || !s.body || s.body.error) {
+          throw new Error(s.body?.error ?? `통계 조회 실패 (HTTP ${s.status})`);
+        }
+        setStats(s.body);
+
+        // 결과 목록 실패는 조용히 빈 배열로 넘기지 않고 사유를 노출한다
+        if (Array.isArray(r.body)) {
+          setResults(r.body);
+        } else {
+          setResults([]);
+          setResultsError(r.body?.error ?? `결과 조회 실패 (HTTP ${r.status})`);
+        }
       })
       .catch((e) => setError(e.message ?? "데이터 로드 실패"))
       .finally(() => setLoading(false));
@@ -93,7 +108,7 @@ export default function Dashboard() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 mb-4">
           {error.includes("SERVICE_ROLE_KEY")
-            ? "⚠️ .env.local에 SUPABASE_SERVICE_ROLE_KEY를 추가해야 합니다."
+            ? "⚠️ SUPABASE_SERVICE_ROLE_KEY가 없습니다 — 운영은 Vercel 환경변수(Production), 로컬은 .env.local에 추가하세요."
             : error}
         </div>
       )}
@@ -155,6 +170,25 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold text-gray-700">최근 진단 결과</h2>
             </div>
             <div className="divide-y divide-gray-50">
+              {resultsError && (
+                <div className="px-4 py-3.5 bg-vp-risk-bg/40">
+                  <p className="text-xs text-vp-risk font-medium">
+                    결과를 불러오지 못했습니다 — {resultsError}
+                  </p>
+                  {resultsError.includes("SERVICE_ROLE_KEY") && (
+                    <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                      Supabase의 service_role 키를 <b>SUPABASE_SERVICE_ROLE_KEY</b>로 등록하세요 —
+                      운영은 Vercel 환경변수(Production) 추가 후 재배포, 로컬은 .env.local에 추가.
+                      통계는 anon 키를 쓰므로 이 오류와 무관하게 정상 표시됩니다.
+                    </p>
+                  )}
+                </div>
+              )}
+              {!resultsError && results.length === 0 && (
+                <div className="px-4 py-3.5 text-xs text-gray-400">
+                  아직 완료된 진단이 없습니다.
+                </div>
+              )}
               {results.map((r) => (
                 <div key={r.id} className="px-4 py-3 flex items-center gap-3 text-xs">
                   <span className="text-gray-400 w-28 shrink-0">
