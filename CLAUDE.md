@@ -207,8 +207,8 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - ✅ FullResultLayout (AI 코멘트 + 약점 단계 중심 액션 추천) — 완성
 
 **어드민 & 인증:**
-- ✅ 관리자 통계 대시보드 (app/admin/*) — 완성
-- ✅ 어드민 인증 (API, 통계 조회) — 완성
+- ✅ 관리자 페이지(app/admin/*) middleware 보호 — 완성
+- ⚠️ /api/admin/* 라우트는 현재 미인증 — 후속 보호 필요 (기존 이슈)
 
 **모드 선택 & 라우팅:**
 - ✅ 모드 선택 UI (IntroHero 2버튼) — 완성
