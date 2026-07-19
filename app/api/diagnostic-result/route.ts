@@ -19,6 +19,12 @@ interface IncomingBody {
   deepStageId?: number | null;
   deepAnswers?: Record<string, number> | null;
   utm?: Record<string, string> | null;
+  // 정밀(full) 모드 필드 — page.tsx가 스네이크케이스로 전송 (Task 9).
+  // quick 저장 경로에서는 값이 없으므로 아래 매핑에서 전부 기본값으로 빠진다.
+  diagnostic_mode?: string;
+  vision_answer?: string | null;
+  unknown_areas?: unknown | null;
+  icp_flag?: boolean | null;
 }
 
 export async function POST(request: Request) {
@@ -49,6 +55,10 @@ export async function POST(request: Request) {
     deep_answers: body.deepAnswers ?? null,
     utm: body.utm ?? null,
     completed: true,
+    diagnostic_mode: body.diagnostic_mode ?? "quick",
+    vision_answer: body.vision_answer ?? null,
+    unknown_areas: body.unknown_areas ?? null,
+    icp_flag: body.icp_flag ?? null,
   };
 
   try {
