@@ -20,18 +20,41 @@ export type ToolFit =
   | "self-server" // 자체 서버·DevOps 전제 — 임대형 몰 셀러에겐 직접 권하기 어려움
   | "top-seller"; // 운영 부담이 커 자체 서버 역량 있는 상위 셀러 전용
 
-export const FIT_META: Record<ToolFit, { label: string; color: string }> = {
-  "cloud-ok": { label: "소규모도 가능", color: "bg-vp-good-bg text-vp-good" },
-  "self-server": { label: "자체 서버 필요", color: "bg-vp-warn-bg text-vp-warn" },
-  "top-seller": { label: "상위 셀러 전용", color: "bg-vp-risk-bg text-vp-risk" },
+/** 규모 조건을 색 점(dot)으로 인코딩 — 채택 난이도 순(쉬움→제한적) */
+export const FIT_META: Record<
+  ToolFit,
+  { label: string; dot: string; text: string; pill: string }
+> = {
+  "cloud-ok": {
+    label: "소규모도 가능",
+    dot: "bg-vp-good",
+    text: "text-vp-good",
+    pill: "bg-vp-good-bg text-vp-good",
+  },
+  "self-server": {
+    label: "자체 서버 필요",
+    dot: "bg-vp-warn",
+    text: "text-vp-warn",
+    pill: "bg-vp-warn-bg text-vp-warn",
+  },
+  "top-seller": {
+    label: "상위 셀러 전용",
+    dot: "bg-vp-risk",
+    text: "text-vp-risk",
+    pill: "bg-vp-risk-bg text-vp-risk",
+  },
 };
 
 export interface ConsultingTool {
   name: string;
   url: string;
-  /** 라이선스 + 규모/활동 요약 (2026-07-19 GitHub 원본 대조) */
-  meta: string;
   fit: ToolFit;
+  /** 라이선스 (2026-07-19 GitHub 원본 대조) */
+  license: string;
+  /** GitHub 스타 수 */
+  stars: string;
+  /** 스택·주의점 한 줄 (도구당 1회만 노출) */
+  note: string;
 }
 
 /** 검증 통과 오픈소스 스택 5종 (전원 3-0) */
@@ -39,32 +62,42 @@ export const VERIFIED_TOOLS: Record<string, ConsultingTool> = {
   posthog: {
     name: "PostHog",
     url: "https://github.com/posthog/posthog",
-    meta: "MIT 오픈코어 · ★36.5k · 셀프호스팅 월~10만 이벤트 한정(공식 지원 없음), 소규모는 클라우드 무료 티어",
     fit: "cloud-ok",
+    license: "MIT 오픈코어",
+    stars: "★36.5k",
+    note: "셀프호스팅 월~10만 이벤트·공식 지원 없음, 소규모는 클라우드 무료 티어",
   },
   mautic: {
     name: "Mautic",
     url: "https://github.com/mautic/mautic",
-    meta: "GPL-3.0(PHP) · ★10.2k · 릴리즈 7.1.3 · privacy-focused(데이터 소유권 논리와 일치)",
     fit: "self-server",
+    license: "GPL-3.0",
+    stars: "★10.2k",
+    note: "PHP · privacy-focused(데이터 소유권 논리와 일치)",
   },
   listmonk: {
     name: "Listmonk",
     url: "https://github.com/knadh/listmonk",
-    meta: "AGPL-3.0(Go) · ★22.2k · 경량 뉴스레터/메일링, 자체 서버 부담 낮음",
     fit: "self-server",
+    license: "AGPL-3.0",
+    stars: "★22.2k",
+    note: "Go · 경량 뉴스레터/메일링, 자체 서버 부담 낮음",
   },
   gorse: {
     name: "Gorse",
     url: "https://github.com/gorse-io/gorse",
-    meta: "Apache-2.0(Go) · ★9.8k · v0.5.11 · DB+Redis+Docker 필요, pre-1.0 API 변경 리스크",
     fit: "top-seller",
+    license: "Apache-2.0",
+    stars: "★9.8k",
+    note: "Go · DB+Redis+Docker 필요, pre-1.0 API 변경 리스크",
   },
   spree: {
     name: "Spree",
     url: "https://github.com/spree/spree",
-    meta: "BSD-3(코어) · ★15.6k · v5.5.3 · \"수수료 제로\" 셀프호스팅 자사몰 플랫폼, DevOps 비용 별도",
     fit: "top-seller",
+    license: "BSD-3",
+    stars: "★15.6k",
+    note: "Rails · \"수수료 제로\" 자사몰, DevOps 비용 별도",
   },
 };
 
