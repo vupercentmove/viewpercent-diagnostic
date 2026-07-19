@@ -4,8 +4,10 @@ import { useState, useMemo, useEffect } from "react";
 import IntroHero from "@/components/IntroHero";
 import QuizStage from "@/components/QuizStage";
 import DeepQuizStage from "@/components/DeepQuizStage";
+import FullDeepQuizStage from "@/components/FullDeepQuizStage";
 import AnalyzingInterstitial from "@/components/AnalyzingInterstitial";
 import ResultLayout from "@/components/ResultLayout";
+import FullResultLayout from "@/components/FullResultLayout";
 import {
   type Answers,
   calcAllStageScores,
@@ -17,15 +19,26 @@ import { STAGES } from "@/lib/stage-meta";
 import { matchCase } from "@/lib/case-match";
 import { matchLabel } from "@/lib/result-labels";
 import {
+  calcFullDeepStageScores,
+  getFullWeakestStage,
+  collectUnknownAreas,
+} from "@/lib/full-deep-scoring";
+import { computeIcpFlag, type IcpSignals } from "@/lib/full-deep-content";
+import {
+  trackDiagnosticStart,
   trackDiagnosticComplete,
   trackRestart,
   trackLabelView,
   trackDeepDiagnosticStart,
   trackDeepDiagnosticComplete,
+  trackModeSelect,
+  trackFullDeepStart,
+  trackFullDeepComplete,
 } from "@/lib/analytics";
 import {
   readStateFromUrl,
   pushResultState,
+  pushFullResultState,
   pushInitialState,
 } from "@/lib/url-state";
 
@@ -49,6 +62,11 @@ function saveResult(payload: {
   hasGap: boolean;
   deepStageId?: number | null;
   deepAnswers?: Record<string, number> | null;
+  // 정밀(full) 모드 필드 — Task 8/9. quick 저장 경로에서는 전달하지 않는다.
+  diagnostic_mode?: string;
+  vision_answer?: string | null;
+  unknown_areas?: { stageId: number; subAreas: string[] }[] | null;
+  icp_flag?: boolean | null;
 }) {
   try {
     fetch("/api/diagnostic-result", {
@@ -68,7 +86,10 @@ type Phase =
   | "analyzing"
   | "result"
   | "deep-quiz"
-  | "deep-result";
+  | "deep-result"
+  | "full-deep-quiz"
+  | "full-analyzing"
+  | "full-result";
 
 export default function HomePage() {
   const [phase, setPhase] = useState<Phase>("intro");
@@ -76,24 +97,52 @@ export default function HomePage() {
   const [deepAnswers, setDeepAnswers] = useState<Answers>({});
   const [deepStageId, setDeepStageId] = useState<number>(0);
 
+  // 정밀(full) 모드 상태
+  const [fullAnswers, setFullAnswers] = useState<Answers>({});
+  const [fullVision, setFullVision] = useState<string | null>(null);
+  const [fullAiComment, setFullAiComment] = useState<string | null>(null);
+  const [fullWeakestName, setFullWeakestName] = useState<string>("");
+
   // URL에서 결과 복원 (구버전 ?a= 공유 링크 + 새로고침/뒤로가기).
   // 복원 시에는 analyzing 인터스티셜을 건너뛰고 결과를 바로 보여준다 (마찰 제거).
   useEffect(() => {
-    const { answers: savedAnswers, phase: savedPhase } = readStateFromUrl();
+    const {
+      answers: savedAnswers,
+      phase: savedPhase,
+      fullAnswers: savedFullAnswers,
+      vision: savedVision,
+    } = readStateFromUrl();
     if (savedAnswers && savedPhase === "result") {
       setAnswers(savedAnswers);
       setPhase("result");
+    } else if (savedFullAnswers && savedPhase === "full-result") {
+      setFullAnswers(savedFullAnswers);
+      setFullVision(savedVision);
+      setPhase("full-result");
     }
 
     const handlePop = () => {
-      const { answers: popAnswers, phase: popPhase } = readStateFromUrl();
+      const {
+        answers: popAnswers,
+        phase: popPhase,
+        fullAnswers: popFullAnswers,
+        vision: popVision,
+      } = readStateFromUrl();
       if (popAnswers && popPhase === "result") {
         setAnswers(popAnswers);
         setPhase("result");
+      } else if (popFullAnswers && popPhase === "full-result") {
+        setFullAnswers(popFullAnswers);
+        setFullVision(popVision);
+        setPhase("full-result");
       } else {
         setAnswers({});
         setDeepAnswers({});
         setDeepStageId(0);
+        setFullAnswers({});
+        setFullVision(null);
+        setFullAiComment(null);
+        setFullWeakestName("");
         setPhase("intro");
       }
       window.scrollTo({ top: 0 });
@@ -104,7 +153,17 @@ export default function HomePage() {
   }, []);
 
   const handleStart = () => {
+    // 빠른 진단 — 이벤트는 여기서 (Task 4에서 IntroHero 밖으로 이동)
+    trackDiagnosticStart();
+    trackModeSelect("quick");
     setPhase("quiz");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleStartFull = () => {
+    trackModeSelect("full");
+    trackFullDeepStart();
+    setPhase("full-deep-quiz");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -183,11 +242,72 @@ export default function HomePage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /** 정밀(full) 진단 완료 — 저장 + AI 코멘트 요청 후 analyzing → result */
+  const handleFullComplete = async ({
+    answers: fullAns,
+    vision,
+    icpSignals,
+  }: {
+    answers: Answers;
+    vision: string | null;
+    icpSignals: IcpSignals;
+  }) => {
+    setFullAnswers(fullAns);
+    setFullVision(vision);
+
+    const scores = calcFullDeepStageScores(fullAns);
+    const weakest = getFullWeakestStage(scores);
+    const overall = Math.round(
+      scores.reduce((a, s) => a + s.score, 0) / scores.length
+    );
+    setFullWeakestName(weakest ? STAGES[weakest.stageId - 1].name : "");
+    trackFullDeepComplete();
+    pushFullResultState(fullAns, vision);
+    setPhase("full-analyzing"); // 인터스티셜 먼저
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // 저장 (fire-and-forget) — icpFlag 판정 포함
+    saveResult({
+      stageScores: scores.map((s) => ({ stageId: s.stageId, score: s.score })),
+      overallScore: overall,
+      weakestStage: weakest?.stageId ?? 0,
+      resultType: "full",
+      hasGap: false,
+      diagnostic_mode: "full",
+      vision_answer: vision,
+      unknown_areas: collectUnknownAreas(fullAns),
+      icp_flag: computeIcpFlag(icpSignals),
+    });
+
+    // AI 코멘트 (실패해도 폴백 반환, 네트워크 오류만 null로 남김)
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "full",
+          stageScores: scores.map((s) => ({ stageId: s.stageId, score: s.score })),
+          overallScore: overall,
+          weakestStage: weakest?.stageId ?? 0,
+          vision,
+        }),
+      });
+      const data = await res.json();
+      setFullAiComment(typeof data.comment === "string" ? data.comment : null);
+    } catch {
+      setFullAiComment(null);
+    }
+  };
+
   const handleRestart = () => {
     trackRestart();
     setAnswers({});
     setDeepAnswers({});
     setDeepStageId(0);
+    setFullAnswers({});
+    setFullVision(null);
+    setFullAiComment(null);
+    setFullWeakestName("");
     setPhase("intro");
     pushInitialState();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -202,9 +322,15 @@ export default function HomePage() {
 
   return (
     <>
-      {phase === "intro" && <IntroHero onStart={handleStart} />}
+      {phase === "intro" && (
+        <IntroHero onStart={handleStart} onStartFull={handleStartFull} />
+      )}
 
       {phase === "quiz" && <QuizStage onComplete={handleQuizComplete} />}
+
+      {phase === "full-deep-quiz" && (
+        <FullDeepQuizStage onComplete={handleFullComplete} />
+      )}
 
       {phase === "deep-quiz" && (
         <DeepQuizStage
@@ -226,6 +352,19 @@ export default function HomePage() {
         />
       )}
 
+      {phase === "full-analyzing" && (
+        <AnalyzingInterstitial
+          worstStageName={fullWeakestName}
+          worstStageId={0}
+          hasGap={false}
+          hasCase={false}
+          onDone={() => {
+            setPhase("full-result");
+            window.scrollTo({ top: 0 });
+          }}
+        />
+      )}
+
       {phase === "result" && (
         <ResultLayout
           answers={answers}
@@ -241,6 +380,15 @@ export default function HomePage() {
           variant="deep-result"
           deepStageId={deepStageId}
           deepAnswers={deepAnswers}
+          onRestart={handleRestart}
+        />
+      )}
+
+      {phase === "full-result" && (
+        <FullResultLayout
+          answers={fullAnswers}
+          vision={fullVision}
+          aiComment={fullAiComment}
           onRestart={handleRestart}
         />
       )}
