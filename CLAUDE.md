@@ -45,7 +45,7 @@ components/
   CTACard.tsx         # KakaoTalk CTA
 lib/
   questions.ts        # 기본 10문항 정의
-  deep-questions.ts   # 심화 27문항 정의 (Stage당 3~5문항)
+  deep-questions.ts   # 심화 27문항 정의 (Stage당 4~5문항, 빠른진단 심화경로와 공유)
   scoring.ts          # 기본 스코어링 + 빈틈 진단 로직
   full-deep-scoring.ts    # 정밀 진단 집계 스코어링
   full-deep-content.ts    # 정밀 진단 설명 + ICP 판정 + Vision 문항
@@ -88,14 +88,14 @@ intro (모드 선택)
 - `quiz`: 기본 10문항 (6 Stage에 걸쳐 분배)
 - `analyzing`: 로딩 인터스티셜 (2~3초)
 - `result`: 결과 화면 (레이더 차트 + 액션 추천 + 심화 진단 유도)
-- `deep-quiz`: 가장 약한 Stage의 심화 3~5문항
+- `deep-quiz`: 가장 약한 Stage의 심화 4~5문항
 - `deep-result`: 기본 결과 + 심화 결과 (subArea 분석) 합산 표시
 
 **정밀 진단 (full) 경로:**
 - `intro`: 모드 선택 화면
 - `full-deep-quiz`: 27문항 (6 Stage 당 4~5문항) + ICP 질문 2개 + Vision 질문 1개
 - `full-analyzing`: 로딩 인터스티셜 (AI 분석 중...)
-- `full-result`: 정밀 결과 (AI 코멘트 포함, ICP 타겟팅 판정)
+- `full-result`: 정밀 결과 (AI 코멘트 + 6 Stage 스코어 + 약점 영역별 액션)
 
 ### 스코어링
 
@@ -113,7 +113,7 @@ intro (모드 선택)
 
 ### 심화 진단 (Deep Diagnosis) — 빠른 진단 부가 경로
 
-- 기본 결과에서 가장 약한 Stage만 3~5문항으로 파고듦
+- 기본 결과에서 가장 약한 Stage만 4~5문항으로 파고듦
 - 각 문항에 `subArea` 태그 (예: "유입 추적", "브랜드 정체성", "이탈 복구")
 - 결과: subArea별 바 차트 + 강/약 영역 분류
 
@@ -123,17 +123,17 @@ intro (모드 선택)
 - **모름 처리**: `UNKNOWN_ANSWER = -1` (`lib/quiz-fallback.ts`)
 - **점수 계산**: 각 Stage별 모름 제외 평균 (`lib/full-deep-scoring.ts`)
   - 예: [100, -1, 50] → 평균 (100+50)/2 = 75
-- **2연속 모름 폴백**: 동일 문항에서 2회 연속 "모름" 선택 시 자동 스킵 및 정적 코멘트 제공
+- **2연속 모름 폴백**: 한 Stage 안에서 서로 다른 문항에 "모름"을 2회 연속 선택하면 그 Stage의 남은 문항을 건너뛰고 설명 카드로 전환. 연속 카운트는 실답변(yes/no/likert) 시 0으로 리셋되고 Stage가 바뀌면 0에서 시작
 - **결과**: 6개 Stage 점수 + 종합 점수
 
 #### ICP 판정 (타겟팅 고객 판정)
 - **조건**: `computeIcpFlag()` (`lib/full-deep-content.ts`)
   - 광고비 월 300만원 이상 (지속적 규모) AND
   - 콘텐츠 주 1회 이상 생성 (지속적 투자)
-- **결과**: `icp_flag` true/false → 카톡 CTA 개인화 메시지에 반영
+- **결과**: `icp_flag` true/false는 Supabase에 저장되어 **백엔드/CRM 세그먼트용**이며, 현재 결과 화면·CTA에는 반영되지 않음 (향후 활용 예정)
 
 #### Vision 문항 + 되비춤
-- **Vision**: "매출 성장 시 가장 먼저 할 일?" (4선다)
+- **Vision**: "매출이 지금보다 성장한다면, 가장 먼저 뭘 하고 싶으세요?" (4선다)
 - **AI 코멘트에 반영**: Claude가 대표의 바람을 인사이트에 녹여 제시
 
 #### AI 분석 코멘트 (Claude Haiku 4.5)
@@ -162,11 +162,11 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
   - 정밀 전용: `diagnostic_mode` (quick/full), `vision_answer`, `unknown_areas`, `icp_flag`
 - **벤치마크 필터**: base 분포는 `deep_stage_id IS NULL AND diagnostic_mode <> 'full'` 행만 포함
 
-### GET /api/admin/stats (인증 필요)
-벤치마크 통계 조회: Stage별 평균 점수, 분포, 전환율 등.
+### GET /api/admin/stats
+벤치마크 통계 조회: Stage별 평균 점수, 분포, 전환율 등. ⚠️ **현재 인증 없음** (middleware가 `/api/admin/*`를 커버하지 않음).
 
-### GET /api/admin/results (인증 필요)
-진단 결과 상세 조회: 페이지네이션 지원, 필터 가능.
+### GET /api/admin/results
+진단 결과 상세 조회: 페이지네이션 지원, 필터 가능. ⚠️ **현재 인증 없음** (middleware가 `/api/admin/*`를 커버하지 않음).
 
 ## 트래킹 이벤트
 
@@ -174,7 +174,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 
 | 이벤트 | 시점 |
 |--------|------|
-| `diagnostic_start` | 빠른 진단 버튼 클릭 (IntroHero에서) |
+| `diagnostic_start` | 빠른 진단 버튼 클릭 (page.tsx handleStart에서) |
 | `mode_select` (quick/full) | 모드 선택 (page.tsx에서) |
 | `full_deep_start` | 정밀 진단 시작 |
 | `quiz_answer` | 각 문항 응답 |
@@ -182,8 +182,9 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 | `full_deep_complete` | 정밀 진단 완료 |
 | `deep_diagnostic_start` | 심화 진단 시작 (빠른 진단 결과 화면에서) |
 | `deep_diagnostic_complete` | 심화 진단 완료 |
-| `cta_click` | KakaoTalk CTA 클릭 (full_cta_click로도 추적) |
-| `restart` | 다시 진단하기 |
+| `cta_kakao_click` | KakaoTalk CTA 클릭 (기본 경로) |
+| `full_cta_click` | KakaoTalk CTA 클릭 (정밀 경로) |
+| `diagnostic_restart` | 다시 진단하기 |
 
 ## 현재 상태 (2026-07-19)
 
@@ -193,7 +194,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - ✅ 퍼널 트래킹 (Vercel Analytics) — 완성
 - ✅ 적응형 심화 진단 (DeepQuizStage) — 완성
 - ✅ Supabase 결과 저장 (fire-and-forget) — 완성
-- ✅ 벤치마크 집계 필터 (deep_stage_id, diagnostic_mode) — 완성
+- ⚠️ 벤치마크 집계 필터 — 부분 완성/핸드오프 대기 (코드: `lib/supabase-admin.ts` getStats에 `deep_stage_id IS NULL AND diagnostic_mode <> 'full'` 필터 있음, 하지만 라이브 API는 Supabase RPC `get_diagnostic_stats()` 사용하며 그 RPC에는 아직 이 필터가 없어 운영자가 Supabase에서 수동 패치 필요)
 
 **정밀 진단 (full) 경로:**
 - ✅ 27문항 Full Deep Quiz Stage — 완성
@@ -203,7 +204,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - ✅ Vision 문항 + AI 코멘트에 반영 — 완성
 - ✅ Claude Haiku 4.5 AI 분석 코멘트 생성 — 완성
 - ✅ 3연 프롬프트 (되받기→인과→트리거) + full 정적 폴백 — 완성
-- ✅ FullResultLayout (AI 코멘트, ICP 타겟팅) — 완성
+- ✅ FullResultLayout (AI 코멘트 + 약점 단계 중심 액션 추천) — 완성
 
 **어드민 & 인증:**
 - ✅ 관리자 통계 대시보드 (app/admin/*) — 완성
@@ -223,7 +224,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 **KakaoTalk 채널 상담 URL:**
 - 기본 URL: `https://pf.kakao.com/_xbunxen` (lib/constants.ts에서 중앙 관리)
 - 결과 페이지별 ref 파라미터 추가 (필요시 상담사가 결과를 미리 봄)
-- **CTA 카피**: "이 빈틈, 카톡으로 봐드릴게요"
+- **CTA 카피** (정밀/full 결과 경로): "이 빈틈, 카톡으로 봐드릴게요" (ResultLayout 기본 경로와는 카피 다름)
 
 ## 주의사항
 
