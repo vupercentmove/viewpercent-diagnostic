@@ -1,17 +1,14 @@
 "use client";
 
-import { trackDiagnosticStart } from "@/lib/analytics";
+import ModeSelect from "./ModeSelect";
 import SocialProofBadge from "./SocialProofBadge";
 
 interface IntroHeroProps {
   onStart: () => void;
+  onStartFull?: () => void;
 }
 
-export default function IntroHero({ onStart }: IntroHeroProps) {
-  const handleStart = () => {
-    trackDiagnosticStart();
-    onStart();
-  };
+export default function IntroHero({ onStart, onStartFull }: IntroHeroProps) {
   return (
     <section className="bg-vp-navy text-white rounded-[14px] px-7 py-9 animate-fade-in-up">
       <p className="text-xs tracking-widest text-vp-blue-light font-medium mb-3 uppercase">
@@ -71,12 +68,7 @@ export default function IntroHero({ onStart }: IntroHeroProps) {
         <SocialProofBadge variant="intro" />
       </div>
 
-      <button
-        onClick={handleStart}
-        className="w-full bg-vp-blue hover:bg-vp-blue-hover text-white font-medium text-sm py-3 rounded-lg transition-colors"
-      >
-        내 브랜드 취약 구간 찾기 →
-      </button>
+      <ModeSelect onQuick={onStart} onFull={onStartFull ?? onStart} />
 
       <p className="text-[11px] text-white/55 text-center mt-3">
         인증 없이 바로 시작 · 결과는 즉시 확인

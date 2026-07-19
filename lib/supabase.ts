@@ -16,6 +16,14 @@ export interface DiagnosticResultRow {
   deep_answers?: Record<string, number> | null;
   utm?: Record<string, string> | null;
   completed?: boolean;
+  /** 진단 모드 — "quick"(기본, 기존 10문항) | "full"(정밀 풀 심화) */
+  diagnostic_mode?: string;
+  /** 정밀 모드 비전 문항 응답(자유서술) */
+  vision_answer?: string | null;
+  /** 정밀 모드 "모름" 응답 영역 목록 */
+  unknown_areas?: unknown | null;
+  /** 정밀 모드 ICP(이상적 고객) 판정 플래그 */
+  icp_flag?: boolean | null;
 }
 
 /** 진단 결과 1건을 diagnostic_results 테이블에 insert. 실패 시 throw. */

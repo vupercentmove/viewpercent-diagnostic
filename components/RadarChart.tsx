@@ -5,15 +5,19 @@ import { STAGES } from "@/lib/stage-meta";
 
 interface RadarChartProps {
   stageScores: { stageId: number; score: number }[];
+  /** 미측정(전부 "모름") Stage id 목록 — 해당 vertex는 "0점"이 아니라 "탐색 필요"로 표시.
+   *  생략 시 기존 동작과 완전히 동일 (quick 모드 호환). */
+  unmeasuredStages?: number[];
 }
 
 /** 의존성 0 순수 SVG 레이더 차트 (recharts 제거 — 번들 ~91KB 절감). */
-export default function RadarChart({ stageScores }: RadarChartProps) {
+export default function RadarChart({ stageScores, unmeasuredStages }: RadarChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const data = stageScores.map(({ stageId, score }) => ({
     name: STAGES.find((s) => s.id === stageId)?.name ?? "",
     score,
+    unmeasured: unmeasuredStages?.includes(stageId) ?? false,
   }));
 
   const n = data.length || 6;
@@ -30,7 +34,9 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
 
   const gridLevels = [0.25, 0.5, 0.75, 1];
   // score=0이면 최소 2px 반지름 보장 — 퇴화 폴리곤/점 겹침 방지
-  const safeR = (i: number) => Math.max((R * data[i].score) / 100, 2);
+  // 미측정 vertex는 "허위 저점" 방지를 위해 중립(50%) 반지름 사용 — 낮은 점수로 오독되지 않도록
+  const safeR = (i: number) =>
+    data[i].unmeasured ? R * 0.5 : Math.max((R * data[i].score) / 100, 2);
   const dataPoly = toPoly(safeR);
 
   const labelFor = (
@@ -62,7 +68,7 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
 
   const ariaLabel =
     "6단계 레이더 차트. " +
-    data.map((d) => `${d.name} ${d.score}점`).join(", ");
+    data.map((d) => `${d.name} ${d.unmeasured ? "탐색 필요" : `${d.score}점`}`).join(", ");
 
   return (
     <div className="bg-white border border-gray-100 rounded-[14px] p-5 mb-4 animate-fade-in-up">
@@ -141,14 +147,27 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
             >
               {/* 터치 44px 히트 영역 */}
               <circle cx={x} cy={y} r={16} fill="transparent" />
-              <circle
-                cx={x}
-                cy={y}
-                r={active ? 6 : 4}
-                fill={active ? "#1e40af" : "#2A5AE6"}
-                stroke="#fff"
-                strokeWidth={2}
-              />
+              {d.unmeasured ? (
+                // 미측정 vertex — 속이 빈 점선 원으로 "탐색 필요"를 시각적으로 구분 (저점처럼 보이지 않게)
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={active ? 6 : 4}
+                  fill="#fff"
+                  stroke="#9ca3af"
+                  strokeWidth={1.5}
+                  strokeDasharray="2 2"
+                />
+              ) : (
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={active ? 6 : 4}
+                  fill={active ? "#1e40af" : "#2A5AE6"}
+                  stroke="#fff"
+                  strokeWidth={2}
+                />
+              )}
             </g>
           );
         })}
@@ -181,7 +200,7 @@ export default function RadarChart({ stageScores }: RadarChartProps) {
                 fontWeight={700}
                 fill="white"
               >
-                {d.score}점
+                {d.unmeasured ? "탐색 필요" : `${d.score}점`}
               </text>
             </g>
           );
