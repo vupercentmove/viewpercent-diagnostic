@@ -91,7 +91,7 @@ export function trackCaseCtaClick(caseId: string) {
 }
 
 /** 진행 중 50% 격려 배너 노출 (1회) */
-export function trackEncouragement(context: "quiz" | "deep") {
+export function trackEncouragement(context: "quiz" | "deep" | "full") {
   track("progress_encouragement", { context });
 }
 
@@ -181,4 +181,39 @@ export function trackSocialProofView(
     isQualitative: isQualitative ? "yes" : "no",
     count: count ?? 0,
   });
+}
+
+/** 진단 모드 선택 (빠른 진단 vs. 정밀 진단) */
+export function trackModeSelect(mode: "quick" | "full") {
+  track("mode_select", { mode });
+}
+
+/** 정밀 진단 시작 (풀 모드 진입) */
+export function trackFullDeepStart() {
+  track("full_deep_start");
+}
+
+/** 정밀 진단 Stage 완료 */
+export function trackFullDeepStageComplete(stageId: number) {
+  track("full_deep_stage_complete", { stageId });
+}
+
+/** 정밀 진단 중 미분류 질문 폴백 처리 */
+export function trackFullDeepUnknownFallback(stageId: number) {
+  track("full_deep_unknown_fallback", { stageId });
+}
+
+/** 정밀 진단 비전 응답 */
+export function trackVisionAnswer() {
+  track("vision_answer");
+}
+
+/** 정밀 진단 완료 */
+export function trackFullDeepComplete() {
+  track("full_deep_complete");
+}
+
+/** 정밀 진단 CTA 클릭 */
+export function trackFullCtaClick() {
+  track("full_cta_click");
 }
