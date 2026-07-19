@@ -17,7 +17,7 @@ export default function FullResultLayout({ answers, vision, aiComment, onRestart
 
   return (
     <div className="max-w-[430px] mx-auto p-4 flex flex-col gap-5">
-      <RadarChart stageScores={radarData} />
+      <RadarChart stageScores={radarData} unmeasuredStages={scores.filter((s) => !s.measured).map((s) => s.stageId)} />
       {unmeasured.length > 0 && (
         <p className="text-[12px] text-gray-400">{unmeasured.map((s) => STAGES[s.stageId - 1].name).join(" · ")} 단계는 아직 탐색이 필요한 영역이에요. 여기부터 같이 보면 돼요.</p>
       )}

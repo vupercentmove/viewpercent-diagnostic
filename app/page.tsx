@@ -279,6 +279,13 @@ export default function HomePage() {
       icp_flag: computeIcpFlag(icpSignals),
     });
 
+    // 전 Stage 모름 — 약점 Stage 자체가 없으므로 /api/analyze 호출 없이 고정 메시지
+    // (weakestStage:0 → stageName(0) → "STAGE 0"이 사용자에게 노출되는 것을 방지)
+    if (!weakest) {
+      setFullAiComment("아직 탐색이 필요한 영역이 많아요. 카톡으로 같이 짚어드릴게요.");
+      return;
+    }
+
     // AI 코멘트 (실패해도 폴백 반환, 네트워크 오류만 null로 남김)
     try {
       const res = await fetch("/api/analyze", {
@@ -288,7 +295,7 @@ export default function HomePage() {
           mode: "full",
           stageScores: scores.map((s) => ({ stageId: s.stageId, score: s.score })),
           overallScore: overall,
-          weakestStage: weakest?.stageId ?? 0,
+          weakestStage: weakest.stageId,
           vision,
         }),
       });
