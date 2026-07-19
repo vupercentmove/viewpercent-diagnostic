@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { STAGES } from "@/lib/stage-meta";
+import { cleanComment } from "@/lib/clean-comment";
 
 export const runtime = "nodejs";
 
@@ -100,11 +101,9 @@ export async function POST(request: Request) {
 
   const prompt =
     mode === "full"
-      ? `당신은 여성의류 이커머스 퍼널 진단 코치입니다. 아래 결과를 보고 대표에게 직접 말하듯 3문장으로:
-1) 되받기 — 대표가 지금 하고 있는 것을 사실로 짚기
-2) 인과 — 그래서 어디가 막히는지 이유
-3) 트리거 — 무엇 하나를 하면 효과가 어떻게 오르는지
-규칙: 존댓말, '무조건/꼭' 금지, 마케팅 문구 금지, 각 문장 60자 이내.
+      ? `당신은 여성의류 이커머스 퍼널 진단 코치입니다. 아래 결과를 보고, 대표에게 직접 말하듯 자연스러운 3문장으로 인사이트를 전하세요.
+문장 순서: (1) 대표가 지금 하고 있는 것을 사실로 짚기 → (2) 그래서 어디가 막히는지 이유 → (3) 무엇 하나를 하면 효과가 어떻게 오르는지.
+출력 형식(반드시): 라벨·머리말·번호("되받기"·"인과"·"트리거"·"1)" 등)를 절대 쓰지 말고, 별표(**)나 마크다운 없이 그냥 자연스러운 문장 3개만 쓰세요. 존댓말, '무조건/꼭' 금지, 마케팅 문구 금지, 각 문장 60자 이내.
 가장 약한 단계: STAGE ${weakestStage} ${stageName(weakestStage)} (${weakScore}점)${vision ? `\n대표의 바람: ${vision}` : ""}`
       : buildQuickPrompt(body);
 
@@ -116,8 +115,13 @@ export async function POST(request: Request) {
       messages: [{ role: "user", content: prompt }],
     });
 
+    const rawText = msg.content[0]?.type === "text" ? msg.content[0].text : "";
+    // full: AI가 라벨(**되받기** 등)·마크다운을 뱉어도 화면엔 자연스러운 문장만 나가도록 정리.
+    //       정리 후 빈 문자열이면 정적 폴백으로 대체. quick은 기존 동작 그대로 유지.
     const comment =
-      msg.content[0]?.type === "text" ? msg.content[0].text.trim() : "";
+      mode === "full"
+        ? cleanComment(rawText) || buildFullFallback(weakestStage, weakScore)
+        : rawText.trim();
 
     return NextResponse.json({ comment });
   } catch (err) {
