@@ -120,6 +120,7 @@ export default function HomePage() {
     } else if (savedFullAnswers && savedPhase === "full-result") {
       setFullAnswers(savedFullAnswers);
       setFullVision(savedVision);
+      setFullVariant(getFullDeepVariant());
       setPhase("full-result");
     }
 
@@ -136,6 +137,7 @@ export default function HomePage() {
       } else if (popFullAnswers && popPhase === "full-result") {
         setFullAnswers(popFullAnswers);
         setFullVision(popVision);
+        setFullVariant(getFullDeepVariant());
         setPhase("full-result");
       } else {
         setAnswers({});
