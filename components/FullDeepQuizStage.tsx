@@ -4,13 +4,13 @@ import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
 import { likertToScore, type Answers } from "@/lib/scoring";
 import { UNKNOWN_ANSWER, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
-import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, type IcpSignals } from "@/lib/full-deep-content";
+import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals } from "@/lib/full-deep-content";
 import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement } from "@/lib/analytics";
 
 const STAGE_IDS = STAGES.map((s) => s.id);
-type Mode = "quiz" | "explainer" | "icp" | "vision";
+type Mode = "quiz" | "explainer" | "icp" | "vision" | "coach";
 
-export default function FullDeepQuizStage({ onComplete }: { onComplete: (r: { answers: Answers; vision: string | null; icpSignals: IcpSignals }) => void }) {
+export default function FullDeepQuizStage({ onComplete, variant }: { onComplete: (r: { answers: Answers; vision: string | null; icpSignals: IcpSignals }) => void; variant: "A" | "B" }) {
   const [answers, setAnswers] = useState<Answers>({});
   const [icp, setIcp] = useState<IcpSignals>({});
   const [stageIdx, setStageIdx] = useState(0);
@@ -19,7 +19,11 @@ export default function FullDeepQuizStage({ onComplete }: { onComplete: (r: { an
   const [icpCursor, setIcpCursor] = useState(0);
   const [mode, setMode] = useState<Mode>("quiz");
   const [showEncouragement, setShowEncouragement] = useState(false);
+  const [coachLine, setCoachLine] = useState<string | null>(null);
   const encouragedRef = useRef(false);
+  // coach 인터스티셜의 "다음" 클릭 시 이어갈 실제 전환 로직. 코치 카드가 끼어들어도
+  // 아래 전환(격려 로직 포함)은 정확히 한 번만 실행되도록 콜백으로 보관한다.
+  const coachNextRef = useRef<(() => void) | null>(null);
 
   const stageId = STAGE_IDS[stageIdx];
   const stage = STAGES[stageIdx];
@@ -28,8 +32,8 @@ export default function FullDeepQuizStage({ onComplete }: { onComplete: (r: { an
   const total = STAGE_IDS.length;
   const step = stageIdx + 1;
 
-  const goNextStage = () => {
-    trackFullDeepStageComplete(stageId);
+  /** Stage 전환 본체(기존 goNextStage 로직 그대로) — 50% 격려는 여기서 정확히 1회만 실행된다. */
+  const commitStageTransition = () => {
     const next = stageIdx + 1;
     if (next < total) {
       // 50% 격려 1회 (절반 단계 진입 시)
@@ -39,6 +43,20 @@ export default function FullDeepQuizStage({ onComplete }: { onComplete: (r: { an
       setStageIdx(next); setQCursor(0); setStreak(0); setMode("quiz");
     } else {
       setMode("icp");
+    }
+  };
+
+  const goNextStage = () => {
+    trackFullDeepStageComplete(stageId);
+    const line = STAGE_COACH_LINE[stageId];
+    if (variant === "A" && line) {
+      // pivotal 단계(2, 6) 완료 직후 — 코치 한 줄을 먼저 보여주고, "다음"에서 실제 전환.
+      coachNextRef.current = commitStageTransition;
+      setCoachLine(line);
+      setMode("coach");
+    } else {
+      // variant B(또는 코치 라인 없는 단계) — 기존 동작과 완전히 동일하게 즉시 전환.
+      commitStageTransition();
     }
   };
 
@@ -56,8 +74,19 @@ export default function FullDeepQuizStage({ onComplete }: { onComplete: (r: { an
     const iq = ICP_QUESTIONS[icpCursor];
     const pick = (patch: IcpSignals) => {
       setIcp((prev) => ({ ...prev, ...patch }));
-      if (icpCursor + 1 < ICP_QUESTIONS.length) setIcpCursor((c) => c + 1);
-      else setMode("vision");
+      if (icpCursor + 1 < ICP_QUESTIONS.length) {
+        setIcpCursor((c) => c + 1);
+        return;
+      }
+      // ICP 2문항 모두 응답 완료
+      if (variant === "A") {
+        coachNextRef.current = () => setMode("vision");
+        setCoachLine(ICP_COACH_LINE);
+        setMode("coach");
+      } else {
+        // variant B — 기존 동작과 완전히 동일하게 즉시 vision으로.
+        setMode("vision");
+      }
     };
     return (
       <Card>
@@ -90,6 +119,29 @@ export default function FullDeepQuizStage({ onComplete }: { onComplete: (r: { an
             <button key={opt} onClick={() => { trackVisionAnswer(); onComplete({ answers, vision: opt, icpSignals: icp }); }} className="w-full py-3 px-4 rounded-lg border border-gray-200 text-[13.5px] text-left text-gray-700 hover:border-vp-blue">{opt}</button>
           ))}
         </div>
+      </Card>
+    );
+  }
+
+  // ── 코치 한 줄 (variant A, pivotal 단계/ICP 완료 직후 1회) ──
+  if (mode === "coach") {
+    return (
+      <Card>
+        <div className="p-4 rounded-lg bg-vp-blue/5">
+          <p className="text-[10px] font-medium text-vp-blue mb-2">잠깐만요</p>
+          <p className="text-[14px] leading-relaxed">{coachLine}</p>
+        </div>
+        <button
+          onClick={() => {
+            const next = coachNextRef.current;
+            coachNextRef.current = null;
+            setCoachLine(null);
+            next?.();
+          }}
+          className="w-full mt-5 py-3 rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover"
+        >
+          다음
+        </button>
       </Card>
     );
   }

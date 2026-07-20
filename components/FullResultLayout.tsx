@@ -8,7 +8,7 @@ import RadarChart from "@/components/RadarChart";
 import { buildKakaoUrl } from "@/lib/constants";
 import { trackFullCtaClick } from "@/lib/analytics";
 
-export default function FullResultLayout({ answers, vision, aiComment, onRestart }: { answers: Answers; vision: string | null; aiComment: string | null; onRestart: () => void }) {
+export default function FullResultLayout({ answers, vision, aiComment, variant, onRestart }: { answers: Answers; vision: string | null; aiComment: string | null; variant?: "A" | "B"; onRestart: () => void }) {
   const scores = useMemo(() => calcFullDeepStageScores(answers), [answers]);
   const weakest = useMemo(() => getFullWeakestStage(scores), [scores]);
   const focus = useMemo(() => scores.filter((s) => s.measured).sort((a, b) => a.score - b.score).slice(0, 3), [scores]);
@@ -49,7 +49,7 @@ export default function FullResultLayout({ answers, vision, aiComment, onRestart
       {vision && (
         <p className="text-[13px] text-gray-700 leading-relaxed px-1">말씀하신 그 방향을 위해서라도, 지금 새는 {weakest ? STAGES[weakest.stageId - 1].name : "이 지점"}부터 같이 보면 돼요.</p>
       )}
-      <a href={buildKakaoUrl(weakest ? `full_${weakest.stageId}` : "full")} target="_blank" rel="noopener" onClick={() => trackFullCtaClick()} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">이 빈틈, 카톡으로 봐드릴게요</a>
+      <a href={buildKakaoUrl(weakest ? `full_${weakest.stageId}` : "full")} target="_blank" rel="noopener" onClick={() => trackFullCtaClick(variant)} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">이 빈틈, 카톡으로 봐드릴게요</a>
       <button onClick={onRestart} className="text-[12px] text-gray-400 underline">다시 진단하기</button>
     </div>
   );

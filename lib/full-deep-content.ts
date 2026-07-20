@@ -66,3 +66,10 @@ export function computeIcpFlag(s: IcpSignals): boolean {
     s.contentOngoing === true
   );
 }
+
+/** pivotal 단계 완료 직후 코치 한 줄 (variant A에서만). 답변 무관 고정, 8원칙 통과. */
+export const STAGE_COACH_LINE: Record<number, string> = {
+  2: "이걸 여쭌 건 — 대표님이 '상품'을 고민하실 때 정작 매출은 '3초 안에 나가는' 이 구간에서 새거든요. 여기가 풀리면 같은 유입에서 더 팔려요.",
+  6: "재구매를 여쭤본 이유는 — 새 고객은 매번 처음부터 설득해야 하지만, 한 번 산 고객은 이미 우리를 알아요. 브랜드가 진짜 쌓이는 지점이 여기예요.",
+};
+export const ICP_COACH_LINE = "이 두 개는 대표님을 거르려는 게 아니라, 지금 단계에 맞는 얘기를 드리려고요. 이미 광고·콘텐츠 돌리시는 분이면 바로 구조 얘기로 들어갈 수 있거든요.";
