@@ -24,6 +24,7 @@ import {
   collectUnknownAreas,
 } from "@/lib/full-deep-scoring";
 import { computeIcpFlag, type IcpSignals } from "@/lib/full-deep-content";
+import { getFullDeepVariant } from "@/lib/ab";
 import {
   trackDiagnosticStart,
   trackDiagnosticComplete,
@@ -102,6 +103,7 @@ export default function HomePage() {
   const [fullVision, setFullVision] = useState<string | null>(null);
   const [fullAiComment, setFullAiComment] = useState<string | null>(null);
   const [fullWeakestName, setFullWeakestName] = useState<string>("");
+  const [fullVariant, setFullVariant] = useState<"A" | "B">("A");
 
   // URL에서 결과 복원 (구버전 ?a= 공유 링크 + 새로고침/뒤로가기).
   // 복원 시에는 analyzing 인터스티셜을 건너뛰고 결과를 바로 보여준다 (마찰 제거).
@@ -118,6 +120,7 @@ export default function HomePage() {
     } else if (savedFullAnswers && savedPhase === "full-result") {
       setFullAnswers(savedFullAnswers);
       setFullVision(savedVision);
+      setFullVariant(getFullDeepVariant());
       setPhase("full-result");
     }
 
@@ -134,6 +137,7 @@ export default function HomePage() {
       } else if (popFullAnswers && popPhase === "full-result") {
         setFullAnswers(popFullAnswers);
         setFullVision(popVision);
+        setFullVariant(getFullDeepVariant());
         setPhase("full-result");
       } else {
         setAnswers({});
@@ -161,8 +165,10 @@ export default function HomePage() {
   };
 
   const handleStartFull = () => {
+    const v = getFullDeepVariant();
+    setFullVariant(v);
     trackModeSelect("full");
-    trackFullDeepStart();
+    trackFullDeepStart(v);
     setPhase("full-deep-quiz");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -261,7 +267,7 @@ export default function HomePage() {
       scores.reduce((a, s) => a + s.score, 0) / scores.length
     );
     setFullWeakestName(weakest ? STAGES[weakest.stageId - 1].name : "");
-    trackFullDeepComplete();
+    trackFullDeepComplete(fullVariant);
     pushFullResultState(fullAns, vision);
     setPhase("full-analyzing"); // 인터스티셜 먼저
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -315,6 +321,7 @@ export default function HomePage() {
     setFullVision(null);
     setFullAiComment(null);
     setFullWeakestName("");
+    setFullVariant("A");
     setPhase("intro");
     pushInitialState();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -336,7 +343,7 @@ export default function HomePage() {
       {phase === "quiz" && <QuizStage onComplete={handleQuizComplete} />}
 
       {phase === "full-deep-quiz" && (
-        <FullDeepQuizStage onComplete={handleFullComplete} />
+        <FullDeepQuizStage onComplete={handleFullComplete} variant={fullVariant} />
       )}
 
       {phase === "deep-quiz" && (
@@ -396,6 +403,7 @@ export default function HomePage() {
           answers={fullAnswers}
           vision={fullVision}
           aiComment={fullAiComment}
+          variant={fullVariant}
           onRestart={handleRestart}
         />
       )}

@@ -201,8 +201,8 @@ export function trackModeSelect(mode: "quick" | "full") {
 }
 
 /** 정밀 진단 시작 (풀 모드 진입) */
-export function trackFullDeepStart() {
-  track("full_deep_start");
+export function trackFullDeepStart(variant?: "A" | "B") {
+  track("full_deep_start", variant ? { variant } : {});
 }
 
 /** 정밀 진단 Stage 완료 */
@@ -221,11 +221,11 @@ export function trackVisionAnswer() {
 }
 
 /** 정밀 진단 완료 */
-export function trackFullDeepComplete() {
-  track("full_deep_complete");
+export function trackFullDeepComplete(variant?: "A" | "B") {
+  track("full_deep_complete", variant ? { variant } : {});
 }
 
 /** 정밀 진단 CTA 클릭 */
-export function trackFullCtaClick() {
-  track("full_cta_click");
+export function trackFullCtaClick(variant?: "A" | "B") {
+  track("full_cta_click", variant ? { variant } : {});
 }
