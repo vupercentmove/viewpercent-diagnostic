@@ -61,8 +61,8 @@ export const RESULT_LABELS: ResultLabel[] = [
   {
     id: "label-s3",
     stageId: 3,
-    label: "매력은 충분, 전달만 남은 브랜드",
-    tagline: "상품의 힘이 고객에게 닿기 직전에 멈춰 있어요",
+    label: "상품은 준비됐어요, 남은 건 '나한테 맞을까'",
+    tagline: "사이즈·핏이 궁금한 순간에 답이 보이면, 장바구니로 넘어가요",
   },
   {
     id: "label-s4",
