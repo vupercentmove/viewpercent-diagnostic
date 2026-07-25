@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "뷰퍼센트무브 브랜드 자가진단",
   description:
-    "광고비를 더 쓰기 전에, 매출이 어디서 새고 있는지부터. 패션 이커머스 브랜드를 위한 6단계 자가진단.",
+    "광고비를 더 쓰기 전에, 고객이 어디서 돌아서는지부터. 패션 이커머스 브랜드를 위한 6단계 자가진단.",
   openGraph: {
     title: "뷰퍼센트무브 브랜드 자가진단",
-    description: "광고비를 더 쓰기 전에, 매출이 어디서 새고 있는지부터.",
+    description: "광고비를 더 쓰기 전에, 고객이 어디서 돌아서는지부터.",
     type: "website",
     images: [{ url: "/api/og", width: 1200, height: 630 }],
   },

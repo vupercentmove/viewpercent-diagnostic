@@ -108,7 +108,7 @@ export async function GET(req: Request) {
             VUPERCENT · 쇼핑 플로우 진단
           </div>
           <div style={{ display: "flex", color: "#fff", fontSize: 60, lineHeight: 1.3 }}>
-            광고비를 더 쓰기 전에,{"\n"}매출이 어디서 새는지부터.
+            광고비를 더 쓰기 전에,{"\n"}고객이 어디서 돌아서는지부터.
           </div>
         </div>
       ),

@@ -18,18 +18,17 @@ export default function IntroHero({ onStart, onStartFull }: IntroHeroProps) {
       <h1 className="text-[26px] font-medium leading-[1.35] mb-3.5">
         광고비를 더 쓰기 전에,
         <br />
-        매출이 어디서 새고 있는지부터.
+        고객이 어디서 돌아서는지부터.
       </h1>
 
       <p className="text-sm leading-relaxed text-white/70 mb-4">
-        &ldquo;광고비를 늘렸는데 매출이 그만큼 따라오지 않는다&rdquo; — 이
-        감각이 익숙하다면, 새는 곳은 광고가 아니라 고객이 지나가는 길목일 수
-        있어요.
+        &ldquo;광고비를 늘렸는데 매출이 그만큼 따라오지 않는다&rdquo; — 이런
+        경험이 쌓여있다면, 광고 문제가 아니라 고객 경험 쪽을 봐야 할 때입니다.
       </p>
 
       <p className="text-[13px] leading-relaxed text-white/55 mb-5 border-l-2 border-vp-blue-light/30 pl-3">
-        쇼핑은 고객이 가장 까다로워지는 순간이에요. 그 까다로움에 우리
-        브랜드가 얼마나 준비돼 있는지, 6단계로 점검합니다.
+        방문한 고객에게 가장 좋은 구매 경험을 만들 준비, 지금 어디까지 돼
+        있을까요? 6단계로 점검합니다.
       </p>
 
       <div className="mb-6 rounded-lg bg-white/[0.05] px-4 py-3.5">

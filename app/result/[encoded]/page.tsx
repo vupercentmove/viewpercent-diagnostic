@@ -23,7 +23,7 @@ export function generateMetadata({ params }: PageProps): Metadata {
   if (!answers) {
     return {
       title: "뷰퍼센트무브 브랜드 자가진단",
-      description: "광고비를 더 쓰기 전에, 매출이 어디서 새고 있는지부터.",
+      description: "광고비를 더 쓰기 전에, 고객이 어디서 돌아서는지부터.",
     };
   }
 
