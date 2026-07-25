@@ -12,7 +12,7 @@ export default function IntroHero({ onStart, onStartFull }: IntroHeroProps) {
   return (
     <section className="bg-vp-navy text-white rounded-[14px] px-7 py-9 animate-fade-in-up">
       <p className="text-xs tracking-widest text-vp-blue-light font-medium mb-3 uppercase">
-        viewpercent move diagnostic
+        vupercent move diagnostic
       </p>
 
       <h1 className="text-[26px] font-medium leading-[1.35] mb-3.5">
