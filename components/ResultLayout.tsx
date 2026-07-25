@@ -82,7 +82,7 @@ export default function ResultLayout({
             href="/"
             className="block w-full text-center bg-vp-blue hover:bg-vp-blue-hover text-white text-[13.5px] font-medium py-2.5 rounded-lg transition-colors"
           >
-            내 브랜드 무료로 진단하기 →
+            내 브랜드도 진단해보기 →
           </a>
         </section>
       )}

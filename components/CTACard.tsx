@@ -102,7 +102,7 @@ export default function CTACard({ answers }: CTACardProps) {
       </button>
 
       <p className="text-[11px] text-white/55 text-center mt-1">
-        무료 · 부담 없는 1:1 상담 · 인증 없이 바로
+        카카오톡 채널에서 1:1로 · 인증 없이 바로
       </p>
     </section>
   );
