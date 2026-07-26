@@ -35,6 +35,9 @@ import {
   trackModeSelect,
   trackFullDeepStart,
   trackFullDeepComplete,
+  trackAiCommentRequested,
+  trackAiCommentFallback,
+  trackAiCommentError,
 } from "@/lib/analytics";
 import {
   readStateFromUrl,
@@ -293,6 +296,7 @@ export default function HomePage() {
     }
 
     // AI 코멘트 (실패해도 폴백 반환, 네트워크 오류만 null로 남김)
+    trackAiCommentRequested("full");
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -306,8 +310,13 @@ export default function HomePage() {
         }),
       });
       const data = await res.json();
+      // 정적 폴백 문구가 나간 경우 — 코멘트는 보이지만 AI가 쓴 게 아니다.
+      if (data.fallback) {
+        trackAiCommentFallback("full", typeof data.reason === "string" ? data.reason : "unknown");
+      }
       setFullAiComment(typeof data.comment === "string" ? data.comment : null);
     } catch {
+      trackAiCommentError("full", "network");
       setFullAiComment(null);
     }
   };
