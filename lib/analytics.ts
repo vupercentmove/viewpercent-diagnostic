@@ -10,6 +10,7 @@
  */
 
 import { track } from "@vercel/analytics";
+import type { AiCommentMode } from "@/lib/ai-fallback";
 
 /** 진단 시작 버튼 클릭 */
 export function trackDiagnosticStart() {
@@ -238,6 +239,14 @@ export function trackVisionAnswer() {
   track("vision_answer");
 }
 
+/** 정밀 진단 문항 인사이트 토글 */
+export function trackQuestionInsightToggle(questionId: string, variant?: "A" | "B") {
+  track("question_insight_toggle", {
+    questionId,
+    variant: variant ?? "A",
+  });
+}
+
 /** 정밀 진단 완료 */
 export function trackFullDeepComplete(variant?: "A" | "B") {
   track("full_deep_complete", variant ? { variant } : {});
@@ -246,4 +255,23 @@ export function trackFullDeepComplete(variant?: "A" | "B") {
 /** 정밀 진단 CTA 클릭 */
 export function trackFullCtaClick(variant?: "A" | "B") {
   track("full_cta_click", variant ? { variant } : {});
+}
+
+/**
+ * AI 코멘트 호출 시도 — 폴백률·실패율의 분모.
+ * 기존 완료 이벤트는 분모로 못 쓴다(diagnostic_complete에 mode가 없고,
+ * full 모드엔 호출을 건너뛰는 분기가, quick엔 옵트인 버튼이 있다).
+ */
+export function trackAiCommentRequested(mode: AiCommentMode) {
+  track("ai_comment_requested", { mode });
+}
+
+/** AI 코멘트가 정적 폴백 문구로 대체됨 (코멘트는 보이지만 AI가 쓴 게 아님) */
+export function trackAiCommentFallback(mode: AiCommentMode, reason: string) {
+  track("ai_comment_fallback", { mode, reason });
+}
+
+/** AI 코멘트 호출 실패 — 코멘트가 아예 안 나감 */
+export function trackAiCommentError(mode: AiCommentMode, reason: string) {
+  track("ai_comment_error", { mode, reason });
 }

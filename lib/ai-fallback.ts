@@ -1,0 +1,35 @@
+/**
+ * AI 코멘트 폴백 판정.
+ *
+ * 배경: cleanComment()가 빈 문자열을 반환하면 정적 폴백 문구가 조용히 나가는데,
+ * 그 사실이 응답에 남지 않아 폴백률을 셀 수 없었다. 판정을 여기로 모아
+ * 응답에 fallback·reason을 싣는다.
+ */
+import { cleanComment } from "@/lib/clean-comment";
+
+/** AI 코멘트를 요청한 진단 모드 */
+export type AiCommentMode = "quick" | "full";
+
+/** 정적 폴백이 나가거나 코멘트가 아예 없을 때의 이유 */
+export type AiFallbackReason =
+  | "no_key" // ANTHROPIC_API_KEY 미설정
+  | "api_error" // Claude API 호출 예외
+  | "empty_after_clean" // AI는 응답했으나 정리 후 빈 문자열
+  | "network"; // 클라이언트 fetch 자체 실패
+
+/** /api/analyze 응답 본문 */
+export interface AiCommentPayload {
+  comment: string;
+  fallback?: true;
+  reason?: AiFallbackReason;
+}
+
+/**
+ * full 모드 응답 본문을 만든다.
+ * rawText를 정리해 내용이 남으면 그대로, 남지 않으면 fallbackText + 폴백 표시.
+ */
+export function resolveFullComment(rawText: string, fallbackText: string): AiCommentPayload {
+  const cleaned = cleanComment(rawText);
+  if (cleaned) return { comment: cleaned };
+  return { comment: fallbackText, fallback: true, reason: "empty_after_clean" };
+}
