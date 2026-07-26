@@ -12,3 +12,13 @@ export function nextUnknownStreak(prevStreak: number, value: number): number {
 export function shouldFallback(streak: number): boolean {
   return streak >= UNKNOWN_FALLBACK_THRESHOLD;
 }
+
+export type FullAnswerNextStep = "advance" | "review" | "fallback";
+
+export function getFullAnswerNextStep(
+  variant: "A" | "B",
+  fallback: boolean
+): FullAnswerNextStep {
+  if (fallback) return "fallback";
+  return variant === "A" ? "review" : "advance";
+}

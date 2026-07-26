@@ -219,3 +219,13 @@ export const DEEP_QUESTIONS: DeepQuestion[] = [
 export function getDeepQuestionsByStage(stageId: number): DeepQuestion[] {
   return DEEP_QUESTIONS.filter((q) => q.stageId === stageId);
 }
+
+export function getDeepQuestionProgress(questionId: string): {
+  stepIndex: number;
+  totalSteps: number;
+} {
+  return {
+    stepIndex: DEEP_QUESTIONS.findIndex((question) => question.id === questionId),
+    totalSteps: DEEP_QUESTIONS.length,
+  };
+}

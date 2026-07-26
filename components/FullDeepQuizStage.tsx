@@ -1,11 +1,11 @@
 "use client";
 import { useState, useRef } from "react";
 import { STAGES } from "@/lib/stage-meta";
-import { getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
+import { getDeepQuestionProgress, getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
 import { likertToScore, type Answers } from "@/lib/scoring";
-import { UNKNOWN_ANSWER, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
-import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals } from "@/lib/full-deep-content";
-import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement } from "@/lib/analytics";
+import { UNKNOWN_ANSWER, getFullAnswerNextStep, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
+import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals, getQuestionInsight } from "@/lib/full-deep-content";
+import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement, trackQuizAnswer, trackQuestionInsightToggle } from "@/lib/analytics";
 
 const STAGE_IDS = STAGES.map((s) => s.id);
 type Mode = "quiz" | "explainer" | "icp" | "vision" | "coach";
@@ -20,6 +20,8 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
   const [mode, setMode] = useState<Mode>("quiz");
   const [showEncouragement, setShowEncouragement] = useState(false);
   const [coachLine, setCoachLine] = useState<string | null>(null);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [insightOpen, setInsightOpen] = useState(false);
   const encouragedRef = useRef(false);
   // coach 인터스티셜의 "다음" 클릭 시 이어갈 실제 전환 로직. 코치 카드가 끼어들어도
   // 아래 전환(격려 로직 포함)은 정확히 한 번만 실행되도록 콜백으로 보관한다.
@@ -40,9 +42,9 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
       if (!encouragedRef.current && next >= Math.floor(total / 2)) {
         encouragedRef.current = true; setShowEncouragement(true); trackEncouragement("full");
       }
-      setStageIdx(next); setQCursor(0); setStreak(0); setMode("quiz");
+      setStageIdx(next); setQCursor(0); setStreak(0); setMode("quiz"); setReviewMode(false); setInsightOpen(false);
     } else {
-      setMode("icp");
+      setMode("icp"); setReviewMode(false); setInsightOpen(false);
     }
   };
 
@@ -60,12 +62,28 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
     }
   };
 
-  const advance = () => (qCursor + 1 < questions.length ? setQCursor((c) => c + 1) : goNextStage());
+  const advance = () => {
+    setReviewMode(false); setInsightOpen(false);
+    (qCursor + 1 < questions.length ? setQCursor((c) => c + 1) : goNextStage());
+  };
 
   const record = (value: number) => {
     setAnswers((prev) => ({ ...prev, [q.id]: value }));
     const s = nextUnknownStreak(streak, value); setStreak(s);
-    if (shouldFallback(s)) { trackFullDeepUnknownFallback(stageId); setMode("explainer"); return; }
+    const progress = getDeepQuestionProgress(q.id);
+    trackQuizAnswer(q.id, stageId, { ...progress, context: "deep" });
+
+    const nextStep = getFullAnswerNextStep(variant, shouldFallback(s));
+    if (nextStep === "fallback") {
+      trackFullDeepUnknownFallback(stageId);
+      setMode("explainer");
+      return;
+    }
+    if (nextStep === "review") {
+      setReviewMode(true);
+      setInsightOpen(false);
+      return;
+    }
     advance();
   };
 
@@ -163,6 +181,7 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
   }
 
   // ── 심화 문항 ──
+  const insight = getQuestionInsight(q.id);
   return (
     <Card>
       <Header stage={stage} step={step} total={total} />
@@ -175,20 +194,44 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
       <div className="p-4 bg-gray-50 rounded-lg">
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 font-medium">{q.subArea}</span>
         <p className="text-[14.5px] leading-relaxed my-3">{q.text}</p>
-        {q.answerType === "yn" ? (
-          <div className="flex gap-2">
-            <button onClick={() => record(100)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">네</button>
-            <button onClick={() => record(0)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">아니요</button>
-          </div>
+        {!reviewMode ? (
+          <>
+            {q.answerType === "yn" ? (
+              <div className="flex gap-2">
+                <button onClick={() => record(100)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">네</button>
+                <button onClick={() => record(0)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">아니요</button>
+              </div>
+            ) : (
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <button key={v} aria-label={`${v}점`} onClick={() => record(likertToScore(v))} className="flex-1 h-[48px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">{v}</button>
+                ))}
+              </div>
+            )}
+            {/* 모름 옵션 — 풀모드 UI 전용 (deep-questions 데이터에 없음) */}
+            <button onClick={() => record(UNKNOWN_ANSWER)} className="w-full mt-2.5 h-[40px] rounded-lg border border-dashed border-gray-300 text-[12.5px] text-gray-500 hover:border-vp-blue hover:text-vp-blue">잘 모르겠어요 · 아직 안 해봤어요</button>
+          </>
         ) : (
-          <div className="flex gap-1.5">
-            {[1, 2, 3, 4, 5].map((v) => (
-              <button key={v} aria-label={`${v}점`} onClick={() => record(likertToScore(v))} className="flex-1 h-[48px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">{v}</button>
-            ))}
+          <div className="rounded-lg border border-gray-200 bg-white p-3">
+            <p className="text-[12px] text-gray-500">응답을 저장했어요. 궁금하면 아래에서 이 질문의 의도를 열어볼 수 있어요.</p>
+            {variant === "A" && insight ? (
+              <>
+                <button
+                  onClick={() => {
+                    setInsightOpen((prev) => !prev);
+                    trackQuestionInsightToggle(q.id, variant);
+                  }}
+                  className="mt-3 text-[12.5px] font-medium text-vp-blue"
+                  aria-expanded={insightOpen}
+                >
+                  {insightOpen ? "의도 접기" : "왜 이걸 묻나요?"}
+                </button>
+                {insightOpen ? <p className="mt-2 text-[13px] leading-relaxed text-gray-700">{insight}</p> : null}
+              </>
+            ) : null}
+            <button onClick={advance} className="w-full mt-3 h-[42px] rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover">다음 질문</button>
           </div>
         )}
-        {/* 모름 옵션 — 풀모드 UI 전용 (deep-questions 데이터에 없음) */}
-        <button onClick={() => record(UNKNOWN_ANSWER)} className="w-full mt-2.5 h-[40px] rounded-lg border border-dashed border-gray-300 text-[12.5px] text-gray-500 hover:border-vp-blue hover:text-vp-blue">잘 모르겠어요 · 아직 안 해봤어요</button>
       </div>
     </Card>
   );
