@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Answers } from "@/lib/scoring";
 import { calcAllStageScores, calcOverallScore, getWorstStage, detectGap } from "@/lib/scoring";
+import { trackAiCommentRequested, trackAiCommentError } from "@/lib/analytics";
 
 interface Props {
   answers: Answers;
@@ -14,6 +15,7 @@ export default function AiCommentCard({ answers }: Props) {
 
   const handleRequest = async () => {
     setState("loading");
+    trackAiCommentRequested("quick");
     try {
       const stageScores = calcAllStageScores(answers);
       const overallScore = calcOverallScore(answers);
@@ -33,11 +35,23 @@ export default function AiCommentCard({ answers }: Props) {
         }),
       });
 
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) {
+        // 서버가 실패 이유를 body에 싣는다(no_key / api_error).
+        // 파싱이 안 되면 상태 코드로 대체한다.
+        const reason = await res
+          .json()
+          .then((body) => (typeof body?.reason === "string" ? body.reason : `http_${res.status}`))
+          .catch(() => `http_${res.status}`);
+        trackAiCommentError("quick", reason);
+        setState("error");
+        return;
+      }
+
       const { comment: text } = await res.json();
       setComment(text);
       setState("done");
     } catch {
+      trackAiCommentError("quick", "network");
       setState("error");
     }
   };
