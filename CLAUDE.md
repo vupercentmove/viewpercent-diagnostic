@@ -185,6 +185,13 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 | `cta_kakao_click` | KakaoTalk CTA 클릭 (기본 경로) |
 | `full_cta_click` | KakaoTalk CTA 클릭 (정밀 경로) |
 | `diagnostic_restart` | 다시 진단하기 |
+| `sticky_cta_view` | **결과 화면 진입** (StickyCtaBar 마운트). 이름과 달리 CTA 노출이 아니다 |
+| `sticky_cta_impression` | 하단 sticky CTA가 실제로 화면에 보인 시점 (한 화면 넘게 스크롤 후) |
+| `sticky_cta_click` | 하단 sticky CTA 클릭 |
+
+⚠️ **`sticky_cta_view`의 발사 시점을 옮기지 말 것.** 2026-06부터 "결과 화면 진입수"로
+시계열이 쌓여 있어, 마운트 시점을 바꾸면 과거와 비교가 끊긴다. CTA 실노출을 재려면
+`sticky_cta_impression`을 쓴다. 두 이벤트의 비율이 곧 "결과를 읽고 내려간 비율"이다.
 
 ## 현재 상태 (2026-07-19)
 
