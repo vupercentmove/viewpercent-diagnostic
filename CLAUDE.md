@@ -163,10 +163,17 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **벤치마크 필터**: base 분포는 `deep_stage_id IS NULL AND diagnostic_mode <> 'full'` 행만 포함
 
 ### GET /api/admin/stats
-벤치마크 통계 조회: Stage별 평균 점수, 분포, 전환율 등. ⚠️ **현재 인증 없음** (middleware가 `/api/admin/*`를 커버하지 않음).
+벤치마크 통계 조회: Stage별 평균 점수, 분포, 전환율 등. **인증 필요** — 미인증 시 401 JSON.
 
 ### GET /api/admin/results
-진단 결과 상세 조회: 페이지네이션 지원, 필터 가능. ⚠️ **현재 인증 없음** (middleware가 `/api/admin/*`를 커버하지 않음).
+진단 결과 상세 조회: 페이지네이션 지원, 필터 가능. **인증 필요** — 미인증 시 401 JSON.
+
+### 어드민 인증 (middleware.ts)
+- matcher: `["/admin/:path*", "/api/admin/:path*"]` — 페이지와 API를 함께 보호
+- 예외는 로그인 경로 두 개뿐: `/admin/login`, `/api/admin/auth` (막으면 로그인 자체가 불가 → 무한 루프)
+- 미인증 응답: API는 401 JSON(`{"error":"인증이 필요합니다."}`), 페이지는 `/admin/login`으로 307
+- 쿠키 `admin_auth` 값이 `ADMIN_PASSWORD`와 일치할 때만 통과. `ADMIN_PASSWORD` 미설정이면 전부 차단
+- ⚠️ 새 어드민 API를 추가할 때 `/api/admin/` 밖에 두면 이 보호를 받지 못한다. 회귀 테스트는 `middleware.test.ts`
 
 ## 트래킹 이벤트
 
@@ -215,7 +222,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 
 **어드민 & 인증:**
 - ✅ 관리자 페이지(app/admin/*) middleware 보호 — 완성
-- ⚠️ /api/admin/* 라우트는 현재 미인증 — 후속 보호 필요 (기존 이슈)
+- ✅ /api/admin/* 라우트 보호 — 완성 (2026-07-26, matcher 확장 + 미인증 401 JSON. `/api/admin/auth`만 예외)
 
 **모드 선택 & 라우팅:**
 - ✅ 모드 선택 UI (IntroHero 2버튼) — 완성
