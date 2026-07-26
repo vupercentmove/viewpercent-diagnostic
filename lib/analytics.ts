@@ -208,6 +208,14 @@ export function trackVisionAnswer() {
   track("vision_answer");
 }
 
+/** 정밀 진단 문항 인사이트 토글 */
+export function trackQuestionInsightToggle(questionId: string, variant?: "A" | "B") {
+  track("question_insight_toggle", {
+    questionId,
+    variant: variant ?? "A",
+  });
+}
+
 /** 정밀 진단 완료 */
 export function trackFullDeepComplete(variant?: "A" | "B") {
   track("full_deep_complete", variant ? { variant } : {});
