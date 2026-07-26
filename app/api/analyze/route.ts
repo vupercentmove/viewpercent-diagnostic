@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { STAGES } from "@/lib/stage-meta";
-import { cleanComment } from "@/lib/clean-comment";
+import { resolveFullComment } from "@/lib/ai-fallback";
 
 export const runtime = "nodejs";
 
@@ -94,9 +94,16 @@ export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     if (mode === "full") {
-      return NextResponse.json({ comment: buildFullFallback(weakestStage, weakScore), fallback: true });
+      return NextResponse.json({
+        comment: buildFullFallback(weakestStage, weakScore),
+        fallback: true,
+        reason: "no_key",
+      });
     }
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY 미설정" }, { status: 503 });
+    return NextResponse.json(
+      { error: "ANTHROPIC_API_KEY 미설정", reason: "no_key" },
+      { status: 503 }
+    );
   }
 
   const prompt =
@@ -117,18 +124,24 @@ export async function POST(request: Request) {
 
     const rawText = msg.content[0]?.type === "text" ? msg.content[0].text : "";
     // full: AI가 라벨(**되받기** 등)·마크다운을 뱉어도 화면엔 자연스러운 문장만 나가도록 정리.
-    //       정리 후 빈 문자열이면 정적 폴백으로 대체. quick은 기존 동작 그대로 유지.
-    const comment =
-      mode === "full"
-        ? cleanComment(rawText) || buildFullFallback(weakestStage, weakScore)
-        : rawText.trim();
+    //       정리 후 빈 문자열이면 정적 폴백으로 대체하고 reason을 남긴다.
+    //       quick은 기존 동작 그대로 유지.
+    if (mode === "full") {
+      return NextResponse.json(
+        resolveFullComment(rawText, buildFullFallback(weakestStage, weakScore))
+      );
+    }
 
-    return NextResponse.json({ comment });
+    return NextResponse.json({ comment: rawText.trim() });
   } catch (err) {
     console.error("[analyze] Claude API 오류:", err);
     if (mode === "full") {
-      return NextResponse.json({ comment: buildFullFallback(weakestStage, weakScore), fallback: true });
+      return NextResponse.json({
+        comment: buildFullFallback(weakestStage, weakScore),
+        fallback: true,
+        reason: "api_error",
+      });
     }
-    return NextResponse.json({ error: "AI 분석 실패" }, { status: 502 });
+    return NextResponse.json({ error: "AI 분석 실패", reason: "api_error" }, { status: 502 });
   }
 }
