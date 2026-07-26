@@ -44,9 +44,16 @@ export default function AdminLogin() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="비밀번호"
             autoFocus
-            className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-vp-blue/30"
+            aria-label="비밀번호"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "login-error" : undefined}
+            className="w-full border border-gray-500 rounded-lg px-4 py-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-2"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && (
+            <p id="login-error" role="alert" className="text-sm text-vp-risk">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading || !password}
