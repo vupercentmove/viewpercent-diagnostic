@@ -1,4 +1,13 @@
-/** 적응형 심화 진단 문항 — 가장 약한 Stage를 3~5문항으로 파고듦 */
+/**
+ * 적응형 심화 진단 문항 — 가장 약한 Stage를 3~5문항으로 파고듦
+ *
+ * 문항 작성 원칙은 `lib/questions.ts` 상단과 동일하다.
+ * 만족도·자각이 아니라 확인 가능한 경험과 행동을 묻고,
+ * '충분히/전략적으로/적극적으로' 같은 자기채점 부사는 쓰지 않는다.
+ *
+ * ⚠️ 심화 문항은 전부 정방향("예"=긍정)이다. REVERSE_YN 로직이 없으므로
+ *    문구를 고칠 때 "예"가 부정 신호가 되는 문장으로 바뀌지 않도록 주의할 것.
+ */
 
 import type { AnswerType } from "./questions";
 
@@ -38,7 +47,7 @@ export const DEEP_QUESTIONS: DeepQuestion[] = [
   {
     id: "d1d",
     stageId: 1,
-    text: "광고 외에, 고객이 우리를 찾아올 수 있는 경로를 의도적으로 만들고 있나요?",
+    text: "지난 3개월 안에, 광고가 아닌 경로(검색·후기·추천)로 들어온 주문을 따로 확인해본 적 있나요?",
     answerType: "likert",
     subArea: "유입 다각화",
   },
@@ -61,14 +70,14 @@ export const DEEP_QUESTIONS: DeepQuestion[] = [
   {
     id: "d2c",
     stageId: 2,
-    text: "경쟁 브랜드 5개와 나란히 놓았을 때, 우리만의 차별점이 눈에 보이나요?",
+    text: "경쟁 브랜드 5개와 우리 메인 화면을 나란히 놓고 비교해본 적이 있나요?",
     answerType: "likert",
     subArea: "차별화",
   },
   {
     id: "d2d",
     stageId: 2,
-    text: "첫 방문 고객이 '둘러보고 싶다'고 느낄 만한 동선 설계가 되어 있나요?",
+    text: "첫 방문 고객이 메인 다음으로 어디를 누르는지, 데이터로 확인하고 계신가요?",
     answerType: "likert",
     subArea: "동선 설계",
   },
@@ -77,7 +86,7 @@ export const DEEP_QUESTIONS: DeepQuestion[] = [
   {
     id: "d3a",
     stageId: 3,
-    text: "상세페이지에서 '기능 나열'이 아닌 '고객 관점의 가치'로 설명하고 있나요?",
+    text: "상세페이지 첫 화면에, 상품 스펙보다 '이걸 입으면 어떤 상황이 좋아지는지'가 먼저 나오나요?",
     answerType: "likert",
     subArea: "가치 전달",
   },
@@ -98,14 +107,14 @@ export const DEEP_QUESTIONS: DeepQuestion[] = [
   {
     id: "d3d",
     stageId: 3,
-    text: "고객의 실제 후기를 상세페이지에 전략적으로 배치하고 있나요?",
+    text: "후기를 상세페이지 어디에 넣을지 정해둔 기준이 있나요?",
     answerType: "likert",
     subArea: "사회적 증거",
   },
   {
     id: "d3e",
     stageId: 3,
-    text: "상품 사진이 단순 촬영을 넘어 '이 옷을 입으면 이렇게 된다'는 스토리를 전달하나요?",
+    text: "상품 사진에 착용 상황(장소·시간·같이 입은 옷)이 드러나 있나요?",
     answerType: "likert",
     subArea: "비주얼 스토리",
   },
@@ -142,7 +151,7 @@ export const DEEP_QUESTIONS: DeepQuestion[] = [
   {
     id: "d4e",
     stageId: 4,
-    text: "교환·반품 정책이 고객 입장에서 명확하고 안심되게 표시되어 있나요?",
+    text: "교환·반품 조건을 상세페이지에서 스크롤을 많이 내리지 않고 찾을 수 있나요?",
     answerType: "likert",
     subArea: "안전감",
   },
@@ -195,14 +204,14 @@ export const DEEP_QUESTIONS: DeepQuestion[] = [
   {
     id: "d6c",
     stageId: 6,
-    text: "단골 고객에게 '당신이 특별하다'는 경험(전용 혜택, 선공개 등)을 제공하고 있나요?",
+    text: "재구매 고객만 받는 혜택이나 안내가 따로 있나요?",
     answerType: "likert",
     subArea: "VIP 경험",
   },
   {
     id: "d6d",
     stageId: 6,
-    text: "고객의 구매 후기를 적극적으로 수집하고, 그 후기를 마케팅에 활용하고 있나요?",
+    text: "받은 후기를 광고 소재나 상세페이지에 그대로 옮겨 쓴 적이 있나요?",
     answerType: "likert",
     subArea: "후기 활용",
   },
