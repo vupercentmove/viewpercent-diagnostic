@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { buildStickyCtaCopy } from "@/lib/sticky-cta-copy";
-import { trackStickyCtaView, trackStickyCtaClick } from "@/lib/analytics";
+import {
+  trackStickyCtaView,
+  trackStickyCtaImpression,
+  trackStickyCtaClick,
+} from "@/lib/analytics";
 import type { GapDiagnosis } from "@/lib/scoring";
 import { KAKAO_URL } from "@/lib/constants";
 
@@ -37,9 +41,16 @@ export default function StickyCtaBar({ stageId, gap }: StickyCtaBarProps) {
     return () => window.removeEventListener("scroll", check);
   }, [revealed]);
 
-  // 노출 트래킹은 실제로 보인 시점에 1회만
+  // 결과 화면 진입수. 발사 시점을 옮기면 2026-06부터의 시계열이 끊긴다.
   useEffect(() => {
-    if (revealed) trackStickyCtaView(stageId);
+    trackStickyCtaView(stageId);
+    // 마운트 1회만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // CTA가 실제로 보인 시점 1회만
+  useEffect(() => {
+    if (revealed) trackStickyCtaImpression(stageId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed]);
 

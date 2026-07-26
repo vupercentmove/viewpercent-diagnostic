@@ -147,9 +147,27 @@ export function trackAnalyzingSkipped(reason: "reduced_motion" | "tab_hidden") {
   track("analyzing_skipped", { reason });
 }
 
-/** 하단 sticky 카톡 CTA 노출 (1회) */
+/**
+ * 결과 화면 진입 (1회).
+ *
+ * 이름은 sticky_cta_view지만 실제 의미는 "결과 화면에 도달한 세션 수"다.
+ * StickyCtaBar 마운트 시점에 발사되며, 2026-06 이후 시계열이 이 정의로
+ * 쌓여 있다. **이름을 바꾸거나 발사 시점을 옮기면 과거와 비교가 끊긴다.**
+ * 실제로 CTA가 눈에 보인 시점은 trackStickyCtaImpression을 쓴다.
+ */
 export function trackStickyCtaView(stageId: number) {
   track("sticky_cta_view", { stageId });
+}
+
+/**
+ * 하단 sticky 카톡 CTA가 실제로 화면에 노출된 시점 (1회).
+ *
+ * 결과 화면을 한 화면 넘게 내려본 세션만 잡힌다 (진단·영업 분리).
+ * sticky_cta_click / sticky_cta_view 대비로 보면
+ * "결과를 읽은 비율"과 "읽고 나서 누른 비율"이 분리된다.
+ */
+export function trackStickyCtaImpression(stageId: number) {
+  track("sticky_cta_impression", { stageId });
 }
 
 /** 하단 sticky 카톡 CTA 클릭 */
