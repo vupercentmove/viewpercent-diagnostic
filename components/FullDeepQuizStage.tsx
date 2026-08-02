@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionProgress, getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
 import { likertToScore, type Answers } from "@/lib/scoring";
-import { UNKNOWN_ANSWER, getFullAnswerNextStep, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
+import { UNKNOWN_ANSWER, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
 import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals, getQuestionInsight } from "@/lib/full-deep-content";
 import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement, trackQuizAnswer, trackQuestionInsightToggle } from "@/lib/analytics";
 
@@ -71,20 +71,17 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
     setAnswers((prev) => ({ ...prev, [q.id]: value }));
     const s = nextUnknownStreak(streak, value); setStreak(s);
     const progress = getDeepQuestionProgress(q.id);
-    trackQuizAnswer(q.id, stageId, { ...progress, context: "deep" });
+    trackQuizAnswer(q.id, stageId, { ...progress, context: "full" });
 
-    const nextStep = getFullAnswerNextStep(variant, shouldFallback(s));
-    if (nextStep === "fallback") {
+    if (shouldFallback(s)) {
       trackFullDeepUnknownFallback(stageId);
       setMode("explainer");
       return;
     }
-    if (nextStep === "review") {
-      setReviewMode(true);
-      setInsightOpen(false);
-      return;
-    }
-    advance();
+    // 응답 검토 게이트는 A/B 공통 — 기존 "코치 한 줄" 실험(A만 노출)의 단일 변수
+    // 격리를 지키기 위해서다. A 전용 차이는 아래 인사이트 토글 내용뿐이다.
+    setReviewMode(true);
+    setInsightOpen(false);
   };
 
   // ── ICP 2문항 ──
@@ -213,20 +210,28 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
           </>
         ) : (
           <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <p className="text-[12px] text-gray-500">응답을 저장했어요. 궁금하면 아래에서 이 질문의 의도를 열어볼 수 있어요.</p>
+            <p className="text-[12px] text-gray-500">
+              {variant === "A" && insight
+                ? "응답을 저장했어요. 궁금하면 아래에서 이 질문의 의도를 열어볼 수 있어요."
+                : "응답을 저장했어요."}
+            </p>
             {variant === "A" && insight ? (
               <>
                 <button
                   onClick={() => {
-                    setInsightOpen((prev) => !prev);
-                    trackQuestionInsightToggle(q.id, variant);
+                    const next = !insightOpen;
+                    setInsightOpen(next);
+                    trackQuestionInsightToggle(q.id, variant, next ? "open" : "close");
                   }}
                   className="mt-3 text-[12.5px] font-medium text-vp-blue"
                   aria-expanded={insightOpen}
+                  aria-controls={`question-insight-${q.id}`}
                 >
                   {insightOpen ? "의도 접기" : "왜 이걸 묻나요?"}
                 </button>
-                {insightOpen ? <p className="mt-2 text-[13px] leading-relaxed text-gray-700">{insight}</p> : null}
+                {insightOpen ? (
+                  <p id={`question-insight-${q.id}`} className="mt-2 text-[13px] leading-relaxed text-gray-700">{insight}</p>
+                ) : null}
               </>
             ) : null}
             <button onClick={advance} className="w-full mt-3 h-[42px] rounded-lg bg-vp-blue text-white text-sm font-medium hover:bg-vp-blue-hover">다음 질문</button>

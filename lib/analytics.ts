@@ -17,11 +17,15 @@ export function trackDiagnosticStart() {
   track("diagnostic_start");
 }
 
-/** 개별 문항 응답 (step 위치 포함 — 문항별 이탈 퍼널 분석용) */
+/**
+ * 개별 문항 응답 (step 위치 포함 — 문항별 이탈 퍼널 분석용)
+ * context: "quick"=기본 10문항 / "deep"=빠른진단 심화(4~5문항) / "full"=정밀진단 27문항.
+ * deep과 full은 문항 id(d1a~d6e)를 공유하므로 context 없이는 퍼널 구분이 안 된다.
+ */
 export function trackQuizAnswer(
   questionId: string,
   stageId: number,
-  opts?: { stepIndex?: number; totalSteps?: number; context?: "quick" | "deep" }
+  opts?: { stepIndex?: number; totalSteps?: number; context?: "quick" | "deep" | "full" }
 ) {
   track("quiz_answer", {
     questionId,
@@ -239,11 +243,19 @@ export function trackVisionAnswer() {
   track("vision_answer");
 }
 
-/** 정밀 진단 문항 인사이트 토글 */
-export function trackQuestionInsightToggle(questionId: string, variant?: "A" | "B") {
+/**
+ * 정밀 진단 문항 인사이트 토글.
+ * action을 실어 보내므로 "열어본 수"는 action=open만 세면 된다 (열기/접기 합산 금지).
+ */
+export function trackQuestionInsightToggle(
+  questionId: string,
+  variant: "A" | "B" | undefined,
+  action: "open" | "close"
+) {
   track("question_insight_toggle", {
     questionId,
     variant: variant ?? "A",
+    action,
   });
 }
 

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   UNKNOWN_ANSWER,
-  getFullAnswerNextStep,
   isUnknown,
   nextUnknownStreak,
   shouldFallback,
@@ -22,13 +21,5 @@ describe("quiz-fallback", () => {
   it("shouldFallback: 2회부터", () => {
     expect(shouldFallback(1)).toBe(false);
     expect(shouldFallback(2)).toBe(true);
-  });
-  it("full 진단 B 대조군은 일반 응답 후 바로 다음 문항으로 이동한다", () => {
-    expect(getFullAnswerNextStep("B", false)).toBe("advance");
-  });
-  it("full 진단 A만 응답 검토 화면을 열고 폴백은 variant보다 우선한다", () => {
-    expect(getFullAnswerNextStep("A", false)).toBe("review");
-    expect(getFullAnswerNextStep("A", true)).toBe("fallback");
-    expect(getFullAnswerNextStep("B", true)).toBe("fallback");
   });
 });
