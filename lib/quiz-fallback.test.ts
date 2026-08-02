@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { UNKNOWN_ANSWER, isUnknown, nextUnknownStreak, shouldFallback } from "./quiz-fallback";
+import {
+  UNKNOWN_ANSWER,
+  isUnknown,
+  nextUnknownStreak,
+  shouldFallback,
+} from "./quiz-fallback";
 
 describe("quiz-fallback", () => {
   it("UNKNOWN_ANSWER는 -1", () => expect(UNKNOWN_ANSWER).toBe(-1));
