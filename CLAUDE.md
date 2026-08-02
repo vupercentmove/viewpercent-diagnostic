@@ -184,7 +184,8 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 | `diagnostic_start` | 빠른 진단 버튼 클릭 (page.tsx handleStart에서) |
 | `mode_select` (quick/full) | 모드 선택 (page.tsx에서) |
 | `full_deep_start` | 정밀 진단 시작 |
-| `quiz_answer` | 각 문항 응답 |
+| `quiz_answer` | 각 문항 응답. `context` 필드로 경로 구분: `quick`=기본 10문항, `deep`=빠른진단 심화(4~5문항), `full`=정밀진단 27문항 |
+| `question_insight_toggle` | 정밀 진단 문항 답변 후 "왜 이걸 묻나요?" 인사이트 토글. `action` 필드가 `open`/`close` — "열어본 수" 집계는 `action=open`만 셀 것 (열기+접기 합산 금지) |
 | `diagnostic_complete` | 빠른 진단 완료 |
 | `full_deep_complete` | 정밀 진단 완료 |
 | `deep_diagnostic_start` | 심화 진단 시작 (빠른 진단 결과 화면에서) |
@@ -199,6 +200,10 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 ⚠️ **`sticky_cta_view`의 발사 시점을 옮기지 말 것.** 2026-06부터 "결과 화면 진입수"로
 시계열이 쌓여 있어, 마운트 시점을 바꾸면 과거와 비교가 끊긴다. CTA 실노출을 재려면
 `sticky_cta_impression`을 쓴다. 두 이벤트의 비율이 곧 "결과를 읽고 내려간 비율"이다.
+
+⚠️ **`quiz_answer`의 `deep`과 `full`은 문항 id(d1a~d6e)를 공유한다.** `context` 필드
+없이 문항 id만으로는 빠른 진단 심화 경로인지 정밀 진단 27문항 경로인지 구분할 수 없다
+(2026-08-02 PR #13에서 분리, 그 전까지는 구분 불가였음).
 
 ## 현재 상태 (2026-07-19)
 
