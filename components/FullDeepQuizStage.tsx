@@ -63,7 +63,9 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
   };
 
   const advance = () => {
-    setReviewMode(false); setInsightOpen(false);
+    // 격려 배너는 뜬 문항 한 번만 — 다음 문항으로 넘어가기 전에 끈다. 이 전환이
+    // 마침 다음 halfway 진입이면 commitStageTransition이 바로 아래에서 다시 켠다.
+    setReviewMode(false); setInsightOpen(false); setShowEncouragement(false);
     (qCursor + 1 < questions.length ? setQCursor((c) => c + 1) : goNextStage());
   };
 

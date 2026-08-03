@@ -48,6 +48,11 @@ export default function QuizStage({ onComplete }: QuizStageProps) {
     cardRef.current?.focus({ preventScroll: true });
   }, [cursor]);
 
+  // 격려 배너는 뜬 문항 한 번만 — 다음 문항으로 넘어가면(자동전진·이전 모두) 사라진다
+  useEffect(() => {
+    setShowEncouragement(false);
+  }, [cursor]);
+
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimer.current !== null) {
       clearTimeout(advanceTimer.current);
