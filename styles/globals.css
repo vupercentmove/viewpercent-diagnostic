@@ -21,6 +21,9 @@ body {
   font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 한글 단어 중간 줄바꿈 방지 — 긴 URL 등은 overflow-wrap이 안전망 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* 버튼 호버/터치 트랜지션 */
