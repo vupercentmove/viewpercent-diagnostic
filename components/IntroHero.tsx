@@ -2,6 +2,7 @@
 
 import ModeSelect from "./ModeSelect";
 import SocialProofBadge from "./SocialProofBadge";
+import StageJourneyStrip from "./StageJourneyStrip";
 
 interface IntroHeroProps {
   onStart: () => void;
@@ -30,6 +31,8 @@ export default function IntroHero({ onStart, onStartFull }: IntroHeroProps) {
         방문한 고객에게 가장 좋은 구매 경험을 만들 준비, 지금 어디까지 돼
         있을까요? 6단계로 점검합니다.
       </p>
+
+      <StageJourneyStrip />
 
       <div className="mb-6 rounded-lg bg-white/[0.05] px-4 py-3.5">
         <p className="text-[12px] text-vp-blue-light font-medium mb-1.5">
