@@ -68,10 +68,6 @@ export default function IntroHero({ onStart, onStartFull }: IntroHeroProps) {
       </div>
 
       <ModeSelect onQuick={onStart} onFull={onStartFull ?? onStart} />
-
-      <p className="text-[11px] text-white/55 text-center mt-3">
-        인증 없이 바로 시작 · 결과는 즉시 확인
-      </p>
     </section>
   );
 }
