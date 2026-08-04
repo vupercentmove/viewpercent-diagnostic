@@ -28,6 +28,7 @@ app/
       auth/route.ts         # 관리자 인증
 components/
   IntroHero.tsx       # 시작 화면 (모드 선택: 빠른 진단 / 정밀 진단)
+  StageJourneyStrip.tsx # 인트로 6단계 여정 스트립 (번호 + 축약 라벨)
   QuizStage.tsx       # 기본 10문항 진단 UI
   FullDeepQuizStage.tsx # 정밀 진단 27문항 UI + ICP/Vision 문항
   DeepQuizStage.tsx   # 심화 진단 UI (적응형)
