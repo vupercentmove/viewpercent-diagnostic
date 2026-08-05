@@ -53,13 +53,27 @@ export default function ResultHero({
       {/* 업계 벤치마크 — 상대 위치 */}
       {benchmark && (
         <div className="mt-6 pt-5 border-t border-white/10">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[12px] text-white/60">
-              전체 점수는 진단한 브랜드 중
-            </span>
-            <span className="text-[20px] font-semibold text-vp-blue-light leading-none">
-              상위 {benchmark.overallTopPercent}%
-            </span>
+          {/* 상위 50% 밖이면 "상위 N%"가 성취처럼 오독되므로, 앞선 브랜드 비율로 방향을 명시한다 */}
+          <div className="flex items-baseline gap-2 flex-wrap">
+            {benchmark.overallTopPercent <= 50 ? (
+              <>
+                <span className="text-[12px] text-white/60">
+                  전체 점수는 진단한 브랜드 중
+                </span>
+                <span className="text-[20px] font-semibold text-vp-blue-light leading-none">
+                  상위 {benchmark.overallTopPercent}%
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-[12px] text-white/60">
+                  지금 우리보다 앞서 있는 브랜드가
+                </span>
+                <span className="text-[20px] font-semibold text-vp-blue-light leading-none">
+                  약 {benchmark.overallTopPercent}%
+                </span>
+              </>
+            )}
           </div>
           <p className="text-[11.5px] text-white/45 leading-relaxed mt-2">
             {benchmark.isSeed

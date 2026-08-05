@@ -48,7 +48,7 @@ export default function PriorityCard({
           <p className="text-[13px] text-gray-700 leading-relaxed">
             이 단계는 진단한 브랜드의{" "}
             <span className="font-semibold text-vp-blue">
-              약 {benchmark!.weakestStageBehindPercent}%
+              약 {benchmark!.weakestStageAheadPercent}%
             </span>
             가 더 앞서 있어요. 가장 먼저 따라잡으면 효과가 큰 지점이에요.
           </p>

@@ -35,13 +35,20 @@ describe("getBenchmark", () => {
     expect(r.weakestStageName).toBeTruthy();
   });
 
-  it("weakestStageBehindPercent는 5~95로 클램프", () => {
+  it("weakestStageAheadPercent는 5~95로 클램프", () => {
     const high = getBenchmark(99, SIX_STAGES([99, 99, 99, 99, 99, 99]));
     const low = getBenchmark(1, SIX_STAGES([1, 1, 1, 1, 1, 1]));
     for (const r of [high, low]) {
-      expect(r.weakestStageBehindPercent).toBeGreaterThanOrEqual(5);
-      expect(r.weakestStageBehindPercent).toBeLessThanOrEqual(95);
+      expect(r.weakestStageAheadPercent).toBeGreaterThanOrEqual(5);
+      expect(r.weakestStageAheadPercent).toBeLessThanOrEqual(95);
     }
+  });
+
+  it("weakestStageAheadPercent 방향 — 낮은 점수일수록 앞선 브랜드가 많다", () => {
+    const low = getBenchmark(1, SIX_STAGES([1, 1, 1, 1, 1, 1]));
+    const high = getBenchmark(99, SIX_STAGES([99, 99, 99, 99, 99, 99]));
+    expect(low.weakestStageAheadPercent).toBeGreaterThanOrEqual(85);
+    expect(high.weakestStageAheadPercent).toBeLessThanOrEqual(15);
   });
 
   it("overallTopPercent는 항상 정수", () => {

@@ -68,7 +68,7 @@ export interface BenchmarkResult {
   /** 가장 약한 단계 id */
   weakestStageId: number;
   /** 그 단계에서 "나보다 앞선" 브랜드 비율 (개선 여지 강조용) */
-  weakestStageBehindPercent: number;
+  weakestStageAheadPercent: number;
   /** 가장 약한 단계 이름 */
   weakestStageName: string;
   /** seed(사전 기준) 모드 여부 — true면 UI에 "초기 기준" 표기 필수 */
@@ -92,7 +92,8 @@ export function getBenchmark(
   return {
     overallTopPercent,
     weakestStageId: weakest.stageId,
-    weakestStageBehindPercent: Math.min(95, Math.max(5, 100 - wTop)),
+    // wTop이 곧 "나보다 앞선(더 높은 점수) 브랜드 비율"이다 — 100-wTop은 내 뒤 비율이라 방향이 반대
+    weakestStageAheadPercent: Math.min(95, Math.max(5, wTop)),
     weakestStageName,
     isSeed: getSampleSize() === null,
     sampleSize: getSampleSize(),
