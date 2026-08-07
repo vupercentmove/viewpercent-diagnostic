@@ -1,13 +1,27 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionsByStage } from "@/lib/deep-questions";
+import { getTag, type ScoreTag } from "@/lib/scoring";
 import type { Answers } from "@/lib/scoring";
 
 interface DeepResultCardProps {
   stageId: number;
   deepAnswers: Answers;
 }
+
+/** 앱 공통 점수 체계(양호·주의·위험)와 같은 색을 쓴다 — 카드만 다른 신호등이면 혼란 */
+const TEXT_COLORS: Record<ScoreTag, string> = {
+  good: "text-vp-good",
+  warn: "text-vp-warn",
+  risk: "text-vp-risk",
+};
+const BAR_COLORS: Record<ScoreTag, string> = {
+  good: "bg-vp-good",
+  warn: "bg-vp-warn",
+  risk: "bg-vp-risk",
+};
 
 /** 심화 진단 결과에서 하위 영역별 강약을 분석 */
 export default function DeepResultCard({
@@ -16,6 +30,12 @@ export default function DeepResultCard({
 }: DeepResultCardProps) {
   const stage = STAGES.find((s) => s.id === stageId)!;
   const questions = getDeepQuestionsByStage(stageId);
+  const cardRef = useRef<HTMLElement>(null);
+
+  // 심화를 막 끝낸 사용자가 찾는 건 이 카드다 — 결과 페이지 상단이 아니라 여기로 데려온다
+  useEffect(() => {
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   // subArea별 점수 계산
   const subAreaScores = questions.map((q) => ({
@@ -28,13 +48,15 @@ export default function DeepResultCard({
     subAreaScores.reduce((sum, s) => sum + s.score, 0) / subAreaScores.length
   );
 
-  // 약한 영역 (50 미만)
-  const weakAreas = subAreaScores.filter((s) => s.score < 50);
-  // 강한 영역 (75 이상)
-  const strongAreas = subAreaScores.filter((s) => s.score >= 75);
+  // 앱 공통 구간과 동일하게 분류 — 위험(<40)만 "지금 개선", 양호(≥70)는 "잘하고 있는"
+  const weakAreas = subAreaScores.filter((s) => getTag(s.score) === "risk");
+  const strongAreas = subAreaScores.filter((s) => getTag(s.score) === "good");
 
   return (
-    <section className="bg-white border border-vp-blue/20 rounded-[14px] p-5 mb-4 animate-fade-in-up">
+    <section
+      ref={cardRef}
+      className="bg-white border border-vp-blue/20 rounded-[14px] p-5 mb-4 animate-fade-in-up scroll-mt-4"
+    >
       {/* 헤더 */}
       <div className="flex items-center gap-2 mb-4">
         <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-vp-blue/10 text-vp-blue">
@@ -59,52 +81,45 @@ export default function DeepResultCard({
 
       {/* 하위 영역 바 차트 */}
       <div className="flex flex-col gap-3 mb-5">
-        {subAreaScores.map(({ subArea, score }) => (
-          <div key={subArea}>
-            <div className="flex justify-between text-[12px] mb-1">
-              <span className="text-gray-600">{subArea}</span>
-              <span
-                className={`font-medium ${
-                  score >= 75
-                    ? "text-green-600"
-                    : score >= 50
-                    ? "text-yellow-600"
-                    : "text-red-500"
-                }`}
-              >
-                {score}점
-              </span>
+        {subAreaScores.map(({ subArea, score }) => {
+          const tag = getTag(score);
+          return (
+            <div key={subArea}>
+              <div className="flex justify-between text-[12px] mb-1">
+                <span className="text-gray-600">{subArea}</span>
+                <span className={`font-medium ${TEXT_COLORS[tag]}`}>
+                  {score}점
+                </span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${BAR_COLORS[tag]}`}
+                  style={{ width: `${score}%` }}
+                />
+              </div>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  score >= 75
-                    ? "bg-green-400"
-                    : score >= 50
-                    ? "bg-yellow-400"
-                    : "bg-red-400"
-                }`}
-                style={{ width: `${score}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* 약한 영역 액션 */}
+      {/* 약한 영역 액션 — 어떤 운영 습관이 비어 있는지(문항)까지 보여준다 */}
       {weakAreas.length > 0 && (
-        <div className="bg-red-50/50 border border-red-100 rounded-lg p-4 mb-3">
-          <h4 className="text-[12px] font-semibold text-red-700 mb-2">
+        <div className="bg-vp-risk-bg/50 border border-vp-risk/15 rounded-lg p-4 mb-3">
+          <h4 className="text-[12px] font-semibold text-vp-risk mb-2">
             지금 바로 개선할 영역
           </h4>
-          <ul className="flex flex-col gap-1.5">
-            {weakAreas.map(({ subArea }) => (
-              <li
-                key={subArea}
-                className="text-[13px] text-red-800 flex items-center gap-2"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                {subArea}
+          <ul className="flex flex-col gap-2.5">
+            {weakAreas.map(({ subArea, questionText }) => (
+              <li key={subArea} className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-vp-risk shrink-0 mt-[6px]" />
+                <div>
+                  <p className="text-[13px] font-medium text-gray-800">
+                    {subArea}
+                  </p>
+                  <p className="text-[12px] text-gray-500 leading-relaxed mt-0.5">
+                    {questionText}
+                  </p>
+                </div>
               </li>
             ))}
           </ul>
@@ -113,17 +128,17 @@ export default function DeepResultCard({
 
       {/* 강한 영역 */}
       {strongAreas.length > 0 && (
-        <div className="bg-green-50/50 border border-green-100 rounded-lg p-4">
-          <h4 className="text-[12px] font-semibold text-green-700 mb-2">
-            잘 하고 있는 영역
+        <div className="bg-vp-good-bg/50 border border-vp-good/15 rounded-lg p-4">
+          <h4 className="text-[12px] font-semibold text-vp-good mb-2">
+            잘하고 있는 영역
           </h4>
           <ul className="flex flex-col gap-1.5">
             {strongAreas.map(({ subArea }) => (
               <li
                 key={subArea}
-                className="text-[13px] text-green-800 flex items-center gap-2"
+                className="text-[13px] text-gray-700 flex items-center gap-2"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-vp-good shrink-0" />
                 {subArea}
               </li>
             ))}
