@@ -196,7 +196,7 @@ export function trackShareCardShare() {
 }
 
 /** 결과 공유 링크(URL) 복사 */
-export function trackShareUrlCopy(context: "result" | "cta") {
+export function trackShareUrlCopy(context: "result" | "cta" | "full-result") {
   track("share_url_copy", { context });
 }
 
