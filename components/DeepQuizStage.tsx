@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
 import { likertToScore, ynToScore, type Answers } from "@/lib/scoring";
+import { LIKERT_ANCHOR_LOW, LIKERT_ANCHOR_HIGH, LIKERT_OPTION_LABEL } from "@/lib/likert-scale";
 import { trackQuizAnswer, trackEncouragement } from "@/lib/analytics";
 import {
   nextIndex,
@@ -347,7 +348,7 @@ function DeepQuestionCard({
                   role="radio"
                   aria-checked={answer === score}
                   tabIndex={answer === score || (answer === undefined && v === 1) ? 0 : -1}
-                  aria-label={`${v}점`}
+                  aria-label={LIKERT_OPTION_LABEL[v]}
                   onClick={() => onLikert(question.id, v)}
                   className={`flex-1 h-[48px] ${btnBase} ${
                     answer === score
@@ -361,8 +362,8 @@ function DeepQuestionCard({
             })}
           </div>
           <div className="flex justify-between text-[11px] text-gray-400 mt-1.5 px-0.5">
-            <span>전혀 아님</span>
-            <span>매우 그렇다</span>
+            <span>{LIKERT_ANCHOR_LOW}</span>
+            <span>{LIKERT_ANCHOR_HIGH}</span>
           </div>
         </div>
       )}

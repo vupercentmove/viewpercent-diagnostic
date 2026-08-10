@@ -25,6 +25,16 @@ export function likertToScore(value: number): number {
   return [0, 25, 50, 75, 100][value - 1] ?? 50;
 }
 
+/**
+ * likertToScore의 역함수 (0~100 → 1~5).
+ * 저장된 점수를 사용자가 실제로 누른 눈금으로 되돌려 되짚어줄 때 쓴다.
+ * 눈금에 정확히 대응하지 않는 값이면 null.
+ */
+export function scoreToLikert(score: number): number | null {
+  const i = [0, 25, 50, 75, 100].indexOf(score);
+  return i === -1 ? null : i + 1;
+}
+
 /** Stage별 평균 점수 계산 */
 export function calcStageScore(stageId: number, answers: Answers): number {
   const questions = QUICK_QUESTIONS.filter((q) => q.stageId === stageId);
