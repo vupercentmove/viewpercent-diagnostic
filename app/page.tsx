@@ -282,6 +282,11 @@ export default function HomePage() {
       weakestStage: weakest?.stageId ?? 0,
       resultType: "full",
       hasGap: false,
+      // 27문항 원본 응답 — 지금까지 집계값만 남고 문항별 응답은 저장되지 않았다.
+      // 이게 없으면 문항 개선(예: 리커트→yn 전환)의 효과를 사후 검증할 수 없다.
+      // '모름'(-1)도 그대로 담는다 — 언어 원칙상 가장 정보가 많은 응답이다.
+      // deep_stage_id는 null로 남으므로 벤치마크 base 분포 필터에는 영향이 없다.
+      deepAnswers: fullAns,
       diagnostic_mode: "full",
       vision_answer: vision,
       unknown_areas: collectUnknownAreas(fullAns),
