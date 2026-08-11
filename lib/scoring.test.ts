@@ -7,6 +7,7 @@ import {
   REVERSE_YN,
   ynToScore,
   likertToScore,
+  scoreToLikert,
   calcStageScore,
   calcAllStageScores,
   calcOverallScore,
@@ -111,6 +112,25 @@ describe("likertToScore", () => {
   it("범위 밖 입력은 50으로 안전 폴백", () => {
     expect(likertToScore(0)).toBe(50);
     expect(likertToScore(6)).toBe(50);
+  });
+});
+
+describe("scoreToLikert", () => {
+  it("0,25,50,75,100 → 1~5 (likertToScore의 역함수)", () => {
+    expect([0, 25, 50, 75, 100].map(scoreToLikert)).toEqual([1, 2, 3, 4, 5]);
+  });
+  it("왕복 변환이 보존된다", () => {
+    for (const v of [1, 2, 3, 4, 5]) expect(scoreToLikert(likertToScore(v))).toBe(v);
+  });
+  it("눈금에 없는 값은 null — 모름(-1) 등이 점수로 오표시되지 않는다", () => {
+    expect(scoreToLikert(-1)).toBeNull();
+    expect(scoreToLikert(33)).toBeNull();
+  });
+  // ⚠️ yn 점수(0/100)도 눈금에 걸려 1·5를 반환한다. "N점" 표기 여부는 이 함수가
+  // 아니라 호출부에서 answerType으로 분기해 정해야 한다.
+  it("yn 점수도 눈금에 걸린다 — 호출부에서 answerType 분기 필요", () => {
+    expect(scoreToLikert(0)).toBe(1);
+    expect(scoreToLikert(100)).toBe(5);
   });
 });
 

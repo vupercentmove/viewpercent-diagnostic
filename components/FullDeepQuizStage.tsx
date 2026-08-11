@@ -2,7 +2,8 @@
 import { useState, useRef } from "react";
 import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionProgress, getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
-import { likertToScore, type Answers } from "@/lib/scoring";
+import { likertToScore, scoreToLikert, type Answers } from "@/lib/scoring";
+import { LIKERT_ANCHOR_LOW, LIKERT_ANCHOR_HIGH, LIKERT_OPTION_LABEL } from "@/lib/likert-scale";
 import { UNKNOWN_ANSWER, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
 import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals, getQuestionInsight } from "@/lib/full-deep-content";
 import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement, trackQuizAnswer, trackQuestionInsightToggle } from "@/lib/analytics";
@@ -196,15 +197,34 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
         {!reviewMode ? (
           <>
             {q.answerType === "yn" ? (
-              <div className="flex gap-2">
-                <button onClick={() => record(100)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">네</button>
-                <button onClick={() => record(0)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">아니요</button>
+              <div className="flex gap-2" role="radiogroup" aria-label={q.text}>
+                <button role="radio" aria-checked={answers[q.id] === 100} onClick={() => record(100)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">네</button>
+                <button role="radio" aria-checked={answers[q.id] === 0} onClick={() => record(0)} className="flex-1 h-[44px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">아니요</button>
               </div>
             ) : (
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5].map((v) => (
-                  <button key={v} aria-label={`${v}점`} onClick={() => record(likertToScore(v))} className="flex-1 h-[48px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue">{v}</button>
-                ))}
+              <div>
+                <div className="flex gap-1.5" role="radiogroup" aria-label={q.text}>
+                  {[1, 2, 3, 4, 5].map((v) => {
+                    const score = likertToScore(v);
+                    return (
+                      <button
+                        key={v}
+                        role="radio"
+                        aria-checked={answers[q.id] === score}
+                        aria-label={LIKERT_OPTION_LABEL[v]}
+                        onClick={() => record(score)}
+                        className="flex-1 h-[48px] rounded-lg border border-gray-200 text-[13px] hover:border-vp-blue"
+                      >
+                        {v}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* 척도 앵커 — 숫자만으로는 어느 쪽이 좋은 상태인지 알 수 없다 (빠른·심화 진단과 동일 문구) */}
+                <div className="flex justify-between text-[11px] text-gray-400 mt-1.5 px-0.5">
+                  <span>{LIKERT_ANCHOR_LOW}</span>
+                  <span>{LIKERT_ANCHOR_HIGH}</span>
+                </div>
               </div>
             )}
             {/* 모름 옵션 — 풀모드 UI 전용 (deep-questions 데이터에 없음) */}
@@ -212,9 +232,11 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
           </>
         ) : (
           <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <p className="text-[12px] text-gray-500">
+            {/* 무엇을 골랐는지 되짚어준다 — 답변 즉시 화면이 바뀌어 확인할 방법이 없었다 */}
+            <p className="text-[12.5px] text-gray-700">{describeAnswer(q, answers[q.id])}</p>
+            <p className="text-[12px] text-gray-500 mt-1">
               {variant === "A" && insight
-                ? "응답을 저장했어요. 궁금하면 아래에서 이 질문의 의도를 열어볼 수 있어요."
+                ? "궁금하면 아래에서 이 질문의 의도를 열어볼 수 있어요."
                 : "응답을 저장했어요."}
             </p>
             {variant === "A" && insight ? (
@@ -242,6 +264,18 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
       </div>
     </Card>
   );
+}
+
+/**
+ * 저장된 응답을 사용자 언어로 되짚는다.
+ * yn 점수(0/100)도 리커트 눈금에 걸리므로 반드시 answerType으로 먼저 분기한다.
+ */
+function describeAnswer(q: DeepQuestion, value: number | undefined): string {
+  if (value === undefined) return "응답을 저장했어요.";
+  if (value === UNKNOWN_ANSWER) return "'잘 모르겠어요'로 답하셨어요.";
+  if (q.answerType === "yn") return value === 100 ? "'네'로 답하셨어요." : "'아니요'로 답하셨어요.";
+  const scale = scoreToLikert(value);
+  return scale === null ? "응답을 저장했어요." : `5점 중 ${scale}점으로 답하셨어요.`;
 }
 
 function Card({ children }: { children: React.ReactNode }) {
