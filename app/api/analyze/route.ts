@@ -13,15 +13,6 @@ import { logAiCommentEvent } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
-const STAGE_NAMES: Record<number, string> = {
-  1: "욕구·검색·방문",
-  2: "정보탐색·비교",
-  3: "구매결정",
-  4: "장바구니·결제",
-  5: "구매완료·기다림",
-  6: "배송·수령완료",
-};
-
 interface Body {
   stageScores: { stageId: number; score: number }[];
   overallScore: number;
@@ -33,6 +24,12 @@ interface Body {
   actualWorst?: number;
 }
 
+/**
+ * 단계명은 lib/stage-meta.ts의 STAGES가 정본이다.
+ * ⚠️ 이 파일에 별도 단계명 표를 두지 말 것 — 2026-08-12까지 로컬 STAGE_NAMES가
+ *    STAGE 2·3·4를 정본과 다르게 담고 있어(3을 "구매결정"으로) 프롬프트가
+ *    화면과 다른 단계명을 AI에게 알려주고 있었다.
+ */
 function stageName(id: number): string {
   return STAGES.find((s) => s.id === id)?.name ?? `STAGE ${id}`;
 }
@@ -66,11 +63,11 @@ function buildQuickPrompt(body: Body): string {
   const weakScore = stageScores.find((s) => s.stageId === weakestStage)?.score ?? 0;
   const scoreLines = stageScores
     .sort((a, b) => a.stageId - b.stageId)
-    .map((s) => `  STAGE ${s.stageId} ${STAGE_NAMES[s.stageId]}: ${s.score}점`)
+    .map((s) => `  STAGE ${s.stageId} ${stageName(s.stageId)}: ${s.score}점`)
     .join("\n");
 
   const gapLine = hasGap
-    ? `착각 패턴 있음 — STAGE ${perceivedWorst}(${STAGE_NAMES[perceivedWorst ?? 0]})이 약하다고 느끼지만 실제로는 STAGE ${actualWorst}(${STAGE_NAMES[actualWorst ?? 0]})이 더 약함`
+    ? `착각 패턴 있음 — STAGE ${perceivedWorst}(${stageName(perceivedWorst ?? 0)})이 약하다고 느끼지만 실제로는 STAGE ${actualWorst}(${stageName(actualWorst ?? 0)})이 더 약함`
     : "착각 패턴 없음";
 
   return `당신은 여성의류 이커머스 브랜드 퍼널 진단 전문가입니다.
@@ -79,7 +76,7 @@ function buildQuickPrompt(body: Body): string {
 진단 결과:
 ${scoreLines}
 - 종합 점수: ${overallScore}점
-- 가장 약한 단계: STAGE ${weakestStage} ${STAGE_NAMES[weakestStage]} (${weakScore}점)
+- 가장 약한 단계: STAGE ${weakestStage} ${stageName(weakestStage)} (${weakScore}점)
 - ${gapLine}
 
 작성 규칙:

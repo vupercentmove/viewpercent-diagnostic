@@ -3,15 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConsultingToolReference from "@/components/admin/ConsultingToolReference";
+import { STAGES } from "@/lib/stage-meta";
 
-const STAGE_NAMES: Record<number, string> = {
-  1: "욕구·검색·방문",
-  2: "정보탐색·비교",
-  3: "구매결정",
-  4: "장바구니·결제",
-  5: "구매완료·기다림",
-  6: "배송·수령완료",
-};
+/** 단계명 정본은 lib/stage-meta.ts — 여기서 표를 따로 만들지 말 것 */
+const stageName = (id: number) => STAGES.find((s) => s.id === id)?.name ?? `STAGE ${id}`;
 
 interface Stats {
   total: number;
@@ -150,7 +145,7 @@ export default function Dashboard() {
               {stats.avgStageScores.map(({ stageId, avg }) => (
                 <div key={stageId}>
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>S{stageId} {STAGE_NAMES[stageId]}</span>
+                    <span>S{stageId} {stageName(stageId)}</span>
                   </div>
                   <ScoreBar value={avg} />
                 </div>
@@ -164,7 +159,7 @@ export default function Dashboard() {
             <div className="flex flex-col gap-1.5">
               {stats.stageDistribution.map(({ stageId, count }) => (
                 <div key={stageId} className="flex items-center gap-2 text-xs text-gray-600">
-                  <span className="w-24 shrink-0">S{stageId} {STAGE_NAMES[stageId]}</span>
+                  <span className="w-24 shrink-0">S{stageId} {stageName(stageId)}</span>
                   <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-vp-blue/60 rounded-full"
