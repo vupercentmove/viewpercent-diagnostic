@@ -17,7 +17,6 @@ interface Stats {
   total: number;
   avgScore: number;
   deepRate: number;
-  ctaRate: number;
   stageDistribution: { stageId: number; count: number }[];
   avgStageScores: { stageId: number; avg: number }[];
 }
@@ -101,12 +100,20 @@ export default function Dashboard() {
       {stats && (
         <>
           {/* 상단 지표 */}
-          <div className="grid grid-cols-4 gap-3 mb-6">
+          {/*
+            「카톡 CTA 전환율」은 2026-08-11에 제거했다.
+            RPC get_diagnostic_stats()의 ctaRate는 diagnostic_results.cta_clicked를 세는데,
+            앱의 insert payload(lib/supabase.ts DiagnosticResultRow)에 그 필드가 없어
+            true로 바뀌는 경로가 코드에 존재하지 않는다 — 16건 전수 false 확인.
+            실제 CTA 클릭은 Vercel Analytics의 cta_kakao_click에만 쌓인다.
+            되살리려면 먼저 그 배선부터 만들 것.
+            스펙: docs/superpowers/specs/2026-08-11-진단OS-지표-정직화-design.md
+          */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
             {[
               { label: "총 완료", value: `${stats.total}건` },
               { label: "평균 점수", value: `${stats.avgScore}점` },
               { label: "심화 진단율", value: `${stats.deepRate}%` },
-              { label: "카톡 CTA 전환율", value: `${stats.ctaRate}%` },
             ].map((m) => (
               <div key={m.label} className="bg-white rounded-xl border border-gray-100 p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{m.value}</p>

@@ -13,6 +13,8 @@ export const runtime = "nodejs";
 // 확인 후 직접 패치해야 한다 (맥미니 집계 파이프라인 핸드오프와 동일 성격).
 // 코드로 고칠 수 있는 경로(lib/supabase-admin.ts의 getStats())는 이번 커밋에서
 // 반영했다.
+// 2026-08-11: RPC가 반환하는 ctaRate는 화면에서 더 이상 읽지 않는다(구조적으로 항상 0).
+// RPC 자체는 레포 밖 자산이라 수정하지 않았다.
 export async function GET() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
@@ -32,7 +34,7 @@ export async function GET() {
     });
     if (!res.ok) throw new Error(`RPC 오류: ${res.status}`);
     const stats = await res.json();
-    return NextResponse.json(stats ?? { total: 0, avgScore: 0, deepRate: 0, ctaRate: 0, stageDistribution: [], avgStageScores: [] });
+    return NextResponse.json(stats ?? { total: 0, avgScore: 0, deepRate: 0, stageDistribution: [], avgStageScores: [] });
   } catch (err) {
     console.error("[admin/stats]", err);
     return NextResponse.json({ error: "통계 조회 실패" }, { status: 502 });
