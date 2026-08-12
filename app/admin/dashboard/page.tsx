@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConsultingToolReference from "@/components/admin/ConsultingToolReference";
+import { aggregateInflowSources } from "@/lib/inflow-source";
 
 const STAGE_NAMES: Record<number, string> = {
   1: "욕구·검색·방문",
@@ -28,6 +29,7 @@ interface Result {
   weakest_stage: number;
   has_gap: boolean;
   deep_stage_id: number | null;
+  utm: Record<string, string> | null;
 }
 
 function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {
@@ -159,6 +161,34 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* 유입경로별 완료 */}
+          <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              유입경로별 완료 <span className="font-normal text-gray-400">(분모: 최근 {results.length}건 · Supabase)</span>
+            </h2>
+            {results.length === 0 ? (
+              <p className="text-xs text-gray-400">아직 완료된 진단이 없습니다.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {aggregateInflowSources(results).map(({ source, count }) => (
+                  <div key={source} className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="w-24 shrink-0">{source}</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-vp-blue/60 rounded-full"
+                        style={{ width: `${Math.round((count / results.length) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="w-12 text-right">{count}건</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-gray-300 mt-2 leading-tight">
+              ref 없이 들어온 건은 「미상」으로 표시합니다. 완료가 30건을 넘으면 이 카드는 최근 30건만 반영하므로 별도 집계가 필요합니다.
+            </p>
           </div>
 
           {/* 최근 결과 목록 */}
