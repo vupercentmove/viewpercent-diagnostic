@@ -243,7 +243,9 @@ export default function HomePage() {
       deepAnswers: ans,
     });
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // 스크롤은 DeepResultCard 마운트 시 scrollIntoView가 담당한다.
+    // 여기서 window.scrollTo(top:0)를 같이 걸면 목적지가 다른 smooth 스크롤
+    // 2개가 경합해 브라우저별로 최종 위치가 달라진다.
   };
 
   const handleDeepCancel = () => {
