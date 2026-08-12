@@ -97,7 +97,7 @@ export default function Dashboard() {
         <>
           {/* 상단 지표 */}
           {/*
-            「카톡 CTA 전환율」은 2026-08-11에 제거했다.
+            「카톡 CTA 전환율」은 2026-08-12에 제거했다.
             RPC get_diagnostic_stats()의 ctaRate는 diagnostic_results.cta_clicked를 세는데,
             앱의 insert payload(lib/supabase.ts DiagnosticResultRow)에 그 필드가 없어
             true로 바뀌는 경로가 코드에 존재하지 않는다 — 16건 전수 false 확인.
