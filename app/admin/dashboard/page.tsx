@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConsultingToolReference from "@/components/admin/ConsultingToolReference";
 import { aggregateInflowSources } from "@/lib/inflow-source";
+import type { DiagnosticRow } from "@/lib/supabase-admin";
 
 const STAGE_NAMES: Record<number, string> = {
   1: "욕구·검색·방문",
@@ -22,16 +23,6 @@ interface Stats {
   avgStageScores: { stageId: number; avg: number }[];
 }
 
-interface Result {
-  id: string;
-  created_at: string;
-  overall_score: number;
-  weakest_stage: number;
-  has_gap: boolean;
-  deep_stage_id: number | null;
-  utm: Record<string, string> | null;
-}
-
 function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {
   const pct = Math.round((value / max) * 100);
   const color = value >= 70 ? "bg-green-400" : value >= 40 ? "bg-yellow-400" : "bg-red-400";
@@ -48,7 +39,7 @@ function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {
 export default function Dashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
-  const [results, setResults] = useState<Result[]>([]);
+  const [results, setResults] = useState<DiagnosticRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -169,10 +160,12 @@ export default function Dashboard() {
           {/* 유입경로별 완료 */}
           <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">
-              유입경로별 완료 <span className="font-normal text-gray-400">(분모: {inflowTotal}건 · Supabase)</span>
+              유입경로별 완료 <span className="font-normal text-gray-400">(분모 {inflowTotal}건 · 최근 30건 조회분 · Supabase)</span>
             </h2>
-            {inflowTotal === 0 ? (
+            {results.length === 0 ? (
               <p className="text-xs text-gray-400">아직 완료된 진단이 없습니다.</p>
+            ) : inflowTotal === 0 ? (
+              <p className="text-xs text-gray-400">집계 대상 건이 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {inflow.map(({ source, count }) => (
@@ -190,7 +183,7 @@ export default function Dashboard() {
               </div>
             )}
             <p className="text-[10px] text-gray-300 mt-2 leading-tight">
-              ref 없이 들어온 건은 「미상」으로 표시합니다. 완료가 30건을 넘으면 이 카드는 최근 30건만 반영하므로 별도 집계가 필요합니다. 배선 실증 레코드(ref=wiring-test)는 집계에서 제외된다.
+              ref 없이 들어온 건은 「미상」으로 표시합니다. 완료가 30건을 넘으면 이 카드는 최근 30건만 반영하므로 별도 집계가 필요합니다. 배선 실증 레코드(ref=wiring-test)는 집계에서 제외됩니다.
             </p>
           </div>
 

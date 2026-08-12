@@ -15,6 +15,15 @@ export const runtime = "nodejs";
 // 이 라우트가 쓰는 집계는 전적으로 RPC다.
 // 2026-08-11: RPC가 반환하는 ctaRate는 화면에서 더 이상 읽지 않는다(구조적으로 항상 0).
 // RPC 자체는 레포 밖 자산이라 수정하지 않았다.
+// 2026-08-12: RPC 정의를 직접 확인했다. 총계(`total`·`avgScore`·`deepRate`)와
+// 분포 계열(`stageDistribution`·`avgStageScores`)이 모두
+// `FROM diagnostic_results WHERE completed = true AND diagnostic_mode <> 'full'`
+// 한 모집단을 쓴다. 실측 14 = 14 = 14. 따라서 화면의 `분모 N건` 표기는 참이고,
+// 수동 패치 대기 상태가 아니다.
+// 2026-08-12: 운영 DB의 배선 실증 행(utm->>'ref' = 'wiring-test', id
+// 7021ebb6)을 completed = false로 바꿨다. 행은 보존했다. getRecentResults가
+// completed=eq.true만 가져오므로 그 행이 화면에 안 오는 진짜 이유가 이것이고,
+// lib/inflow-source.ts의 WIRING_TEST_REF 제외는 이중 안전장치다.
 export async function GET() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
