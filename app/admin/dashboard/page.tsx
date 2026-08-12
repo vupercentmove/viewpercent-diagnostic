@@ -111,20 +111,23 @@ export default function Dashboard() {
           */}
           <div className="grid grid-cols-3 gap-3 mb-6">
             {[
-              { label: "총 완료", value: `${stats.total}건` },
-              { label: "평균 점수", value: `${stats.avgScore}점` },
-              { label: "심화 진단율", value: `${stats.deepRate}%` },
+              { label: "총 완료", value: `${stats.total}건`, note: "빠른 진단 완료 · Supabase RPC" },
+              { label: "평균 점수", value: `${stats.avgScore}점`, note: `분모 ${stats.total}건 · Supabase RPC` },
+              { label: "심화 진단율", value: `${stats.deepRate}%`, note: `분모 ${stats.total}건 · Supabase RPC` },
             ].map((m) => (
               <div key={m.label} className="bg-white rounded-xl border border-gray-100 p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{m.value}</p>
                 <p className="text-xs text-gray-400 mt-1">{m.label}</p>
+                <p className="text-[10px] text-gray-300 mt-0.5 leading-tight">{m.note}</p>
               </div>
             ))}
           </div>
 
           {/* Stage별 평균 점수 */}
           <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Stage별 평균 점수</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              Stage별 평균 점수 <span className="font-normal text-gray-400">(분모 {stats.total}건 · Supabase RPC)</span>
+            </h2>
             <div className="flex flex-col gap-2">
               {stats.avgStageScores.map(({ stageId, avg }) => (
                 <div key={stageId}>
@@ -139,7 +142,9 @@ export default function Dashboard() {
 
           {/* 최약 Stage 분포 */}
           <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">최약 Stage 분포 (사용자 기준)</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              최약 Stage 분포 <span className="font-normal text-gray-400">(분모 {stats.total}건 · Supabase RPC)</span>
+            </h2>
             <div className="flex flex-col gap-1.5">
               {stats.stageDistribution.map(({ stageId, count }) => (
                 <div key={stageId} className="flex items-center gap-2 text-xs text-gray-600">
