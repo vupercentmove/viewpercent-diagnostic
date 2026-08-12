@@ -71,6 +71,9 @@ export default function Dashboard() {
     router.push("/admin/login");
   };
 
+  const inflow = aggregateInflowSources(results);
+  const inflowTotal = inflow.reduce((sum, i) => sum + i.count, 0);
+
   return (
     <div className="max-w-3xl mx-auto p-5">
       {/* 헤더 */}
@@ -166,19 +169,19 @@ export default function Dashboard() {
           {/* 유입경로별 완료 */}
           <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">
-              유입경로별 완료 <span className="font-normal text-gray-400">(분모: 최근 {results.length}건 · Supabase)</span>
+              유입경로별 완료 <span className="font-normal text-gray-400">(분모: {inflowTotal}건 · Supabase)</span>
             </h2>
-            {results.length === 0 ? (
+            {inflowTotal === 0 ? (
               <p className="text-xs text-gray-400">아직 완료된 진단이 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-1.5">
-                {aggregateInflowSources(results).map(({ source, count }) => (
+                {inflow.map(({ source, count }) => (
                   <div key={source} className="flex items-center gap-2 text-xs text-gray-600">
                     <span className="w-24 shrink-0">{source}</span>
                     <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-vp-blue/60 rounded-full"
-                        style={{ width: `${Math.round((count / results.length) * 100)}%` }}
+                        style={{ width: `${Math.round((count / inflowTotal) * 100)}%` }}
                       />
                     </div>
                     <span className="w-12 text-right">{count}건</span>
@@ -187,7 +190,7 @@ export default function Dashboard() {
               </div>
             )}
             <p className="text-[10px] text-gray-300 mt-2 leading-tight">
-              ref 없이 들어온 건은 「미상」으로 표시합니다. 완료가 30건을 넘으면 이 카드는 최근 30건만 반영하므로 별도 집계가 필요합니다.
+              ref 없이 들어온 건은 「미상」으로 표시합니다. 완료가 30건을 넘으면 이 카드는 최근 30건만 반영하므로 별도 집계가 필요합니다. 배선 실증 레코드(ref=wiring-test)는 집계에서 제외된다.
             </p>
           </div>
 
