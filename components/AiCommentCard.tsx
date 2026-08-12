@@ -3,7 +3,11 @@
 import { useState } from "react";
 import type { Answers } from "@/lib/scoring";
 import { calcAllStageScores, calcOverallScore, getWorstStage, detectGap } from "@/lib/scoring";
-import { trackAiCommentRequested, trackAiCommentError } from "@/lib/analytics";
+import {
+  trackAiCommentRequested,
+  trackAiCommentError,
+  trackAiCommentFallback,
+} from "@/lib/analytics";
 
 interface Props {
   answers: Answers;
@@ -47,8 +51,12 @@ export default function AiCommentCard({ answers }: Props) {
         return;
       }
 
-      const { comment: text } = await res.json();
-      setComment(text);
+      const data = await res.json();
+      // 정적 폴백 문구가 나간 경우 — 코멘트는 보이지만 AI가 쓴 게 아니다.
+      if (data.fallback) {
+        trackAiCommentFallback("quick", typeof data.reason === "string" ? data.reason : "unknown");
+      }
+      setComment(data.comment);
       setState("done");
     } catch {
       trackAiCommentError("quick", "network");

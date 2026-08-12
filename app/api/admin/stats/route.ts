@@ -31,7 +31,28 @@ export async function GET() {
     });
     if (!res.ok) throw new Error(`RPC 오류: ${res.status}`);
     const stats = await res.json();
-    return NextResponse.json(stats ?? { total: 0, avgScore: 0, deepRate: 0, ctaRate: 0, stageDistribution: [], avgStageScores: [] });
+
+    // AI 코멘트 폴백률은 별도 RPC. 이쪽이 실패해도 진단 통계는 그대로 보여준다.
+    let aiComment = null;
+    try {
+      const aiRes = await fetch(`${url}/rest/v1/rpc/get_ai_comment_stats`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+        },
+        body: "{}",
+      });
+      if (aiRes.ok) aiComment = await aiRes.json();
+    } catch (err) {
+      console.error("[admin/stats] ai comment stats:", err);
+    }
+
+    return NextResponse.json({
+      ...(stats ?? { total: 0, avgScore: 0, deepRate: 0, ctaRate: 0, stageDistribution: [], avgStageScores: [] }),
+      aiComment,
+    });
   } catch (err) {
     console.error("[admin/stats]", err);
     return NextResponse.json({ error: "통계 조회 실패" }, { status: 502 });

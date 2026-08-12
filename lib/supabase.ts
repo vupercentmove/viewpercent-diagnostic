@@ -53,3 +53,34 @@ export async function insertDiagnosticResult(
     throw new Error(`Supabase insert 실패 (${res.status}): ${detail}`);
   }
 }
+
+/** AI 코멘트 응답 1건 기록 (폴백률 집계용). 실패해도 throw 하지 않는다. */
+export async function logAiCommentEvent(event: {
+  mode: string;
+  fallback: boolean;
+  reason?: string | null;
+}): Promise<void> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) return;
+
+  try {
+    await fetch(`${url}/rest/v1/ai_comment_events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        mode: event.mode,
+        fallback: event.fallback,
+        reason: event.reason ?? null,
+      }),
+    });
+  } catch (err) {
+    // 집계 실패가 코멘트 응답을 막지 않는다.
+    console.error("[ai_comment_events] insert failed:", err);
+  }
+}

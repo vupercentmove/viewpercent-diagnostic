@@ -1,13 +1,15 @@
 /**
  * POST /api/analyze
  * 진단 결과 → Claude Haiku → AI 분석 코멘트 (150자 내외)
- * mode==="full": 정밀 진단 3연 프롬프트 ([되받기]→[인과]→[트리거]) + full 전용 정적 폴백
+ * mode==="full": 정밀 진단 3연 프롬프트 ([되받기]→[인과]→[트리거])
+ * 두 모드 모두 실패·수치 날조 시 모드별 정적 폴백으로 대체한다(응답에 fallback·reason 표시).
  */
 
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { STAGES } from "@/lib/stage-meta";
-import { resolveFullComment } from "@/lib/ai-fallback";
+import { resolveComment, type AiCommentPayload } from "@/lib/ai-fallback";
+import { logAiCommentEvent } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -45,7 +47,20 @@ function buildFullFallback(weakestStage: number, weakScore: number): string {
   ].join("\n");
 }
 
-/** 기존 quick 프롬프트 — 문구·로직 불변 */
+/** quick 전용 폴백: 2문장, full과 같은 톤 규칙 (수치는 실측 점수만) */
+function buildQuickFallback(weakestStage: number, weakScore: number): string {
+  const n = stageName(weakestStage);
+  return `지금 가장 먼저 볼 곳은 ${n} 단계예요(${weakScore}점). 여기 한 곳만 손봐도 지금 트래픽 그대로 전환이 올라갈 여지가 가장 커요.`;
+}
+
+/** 모드별 정적 폴백 선택 */
+function buildFallback(mode: Body["mode"], weakestStage: number, weakScore: number): string {
+  return mode === "full"
+    ? buildFullFallback(weakestStage, weakScore)
+    : buildQuickFallback(weakestStage, weakScore);
+}
+
+/** 기존 quick 프롬프트 — 문구 불변 */
 function buildQuickPrompt(body: Body): string {
   const { stageScores, overallScore, weakestStage, hasGap, perceivedWorst, actualWorst } = body;
   const weakScore = stageScores.find((s) => s.stageId === weakestStage)?.score ?? 0;
@@ -76,6 +91,16 @@ ${scoreLines}
 - 마케팅 문구 금지, 현장 전문가처럼`;
 }
 
+/** 응답을 그대로 돌려주면서 폴백 여부를 집계 테이블에 남긴다 */
+async function respond(payload: AiCommentPayload, mode: Body["mode"]) {
+  await logAiCommentEvent({
+    mode: mode ?? "quick",
+    fallback: payload.fallback === true,
+    reason: payload.reason ?? null,
+  });
+  return NextResponse.json(payload);
+}
+
 export async function POST(request: Request) {
   // 1) body 먼저 파싱 (mode를 알아야 분기)
   let body: Body;
@@ -92,19 +117,15 @@ export async function POST(request: Request) {
 
   const weakScore = stageScores.find((s) => s.stageId === weakestStage)?.score ?? 0;
 
-  // 2) apiKey 검사 — full은 폴백, quick은 기존 503 유지
+  // AI가 인용해도 되는 수치 = 진단이 실제로 제공한 점수들
+  const allowedNumbers = [...stageScores.map((s) => s.score), overallScore];
+
+  // 2) apiKey 검사 — 두 모드 모두 정적 폴백 (에러 대신 읽을 수 있는 코멘트를 준다)
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    if (mode === "full") {
-      return NextResponse.json({
-        comment: buildFullFallback(weakestStage, weakScore),
-        fallback: true,
-        reason: "no_key",
-      });
-    }
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY 미설정", reason: "no_key" },
-      { status: 503 }
+    return respond(
+      { comment: buildFallback(mode, weakestStage, weakScore), fallback: true, reason: "no_key" },
+      mode
     );
   }
 
@@ -125,25 +146,17 @@ export async function POST(request: Request) {
     });
 
     const rawText = msg.content[0]?.type === "text" ? msg.content[0].text : "";
-    // full: AI가 라벨(**되받기** 등)·마크다운을 뱉어도 화면엔 자연스러운 문장만 나가도록 정리.
-    //       정리 후 빈 문자열이면 정적 폴백으로 대체하고 reason을 남긴다.
-    //       quick은 기존 동작 그대로 유지.
-    if (mode === "full") {
-      return NextResponse.json(
-        resolveFullComment(rawText, buildFullFallback(weakestStage, weakScore))
-      );
-    }
-
-    return NextResponse.json({ comment: rawText.trim() });
+    // AI가 라벨(**되받기** 등)·마크다운을 뱉어도 화면엔 자연스러운 문장만 나가도록 정리하고,
+    // 정리 후 빈 문자열이거나 진단에 없는 성과 수치를 지어냈으면 정적 폴백으로 대체한다.
+    return respond(
+      resolveComment(rawText, buildFallback(mode, weakestStage, weakScore), allowedNumbers),
+      mode
+    );
   } catch (err) {
     console.error("[analyze] Claude API 오류:", err);
-    if (mode === "full") {
-      return NextResponse.json({
-        comment: buildFullFallback(weakestStage, weakScore),
-        fallback: true,
-        reason: "api_error",
-      });
-    }
-    return NextResponse.json({ error: "AI 분석 실패", reason: "api_error" }, { status: 502 });
+    return respond(
+      { comment: buildFallback(mode, weakestStage, weakScore), fallback: true, reason: "api_error" },
+      mode
+    );
   }
 }

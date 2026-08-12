@@ -20,6 +20,13 @@ interface Stats {
   ctaRate: number;
   stageDistribution: { stageId: number; count: number }[];
   avgStageScores: { stageId: number; avg: number }[];
+  /** AI 코멘트 폴백률 — 별도 RPC라 조회 실패 시 null */
+  aiComment?: {
+    total: number;
+    fallbackCount: number;
+    fallbackRate: number;
+    byReason: { reason: string; count: number }[];
+  } | null;
 }
 
 interface Result {
@@ -122,6 +129,12 @@ export default function Dashboard() {
               { label: "평균 점수", value: `${stats.avgScore}점` },
               { label: "심화 진단율", value: `${stats.deepRate}%` },
               { label: "카톡 CTA 전환율", value: `${stats.ctaRate}%` },
+              {
+                label: "AI 폴백률",
+                value: stats.aiComment
+                  ? `${stats.aiComment.fallbackRate}% (${stats.aiComment.fallbackCount}/${stats.aiComment.total})`
+                  : "집계 없음",
+              },
             ].map((m) => (
               <div key={m.label} className="bg-white rounded-xl border border-gray-100 p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{m.value}</p>
