@@ -20,6 +20,7 @@ export interface DiagnosticRow {
   utm: Record<string, string> | null;
   /** "quick"(기본) | "full"(정밀). 구행(마이그레이션 전) 데이터는 undefined일 수 있음. */
   diagnostic_mode?: string;
+  cta_clicked?: boolean | null;
 }
 
 function adminHeaders() {
@@ -51,14 +52,22 @@ export async function getTotalCount(): Promise<number> {
 /** 최근 결과 목록 */
 export async function getRecentResults(limit = 50): Promise<DiagnosticRow[]> {
   const res = await fetch(
-    `${baseUrl()}/diagnostic_results?select=id,created_at,overall_score,weakest_stage,result_type,has_gap,deep_stage_id,stage_scores,utm,diagnostic_mode&completed=eq.true&order=created_at.desc&limit=${limit}`,
+    `${baseUrl()}/diagnostic_results?select=id,created_at,overall_score,weakest_stage,result_type,has_gap,deep_stage_id,stage_scores,utm,diagnostic_mode,cta_clicked&completed=eq.true&order=created_at.desc&limit=${limit}`,
     { headers: adminHeaders() }
   );
   if (!res.ok) throw new Error(`Supabase 조회 실패: ${res.status}`);
   return res.json();
 }
 
-/** 통계 집계 (서버에서 계산) */
+/**
+ * 통계 집계 (서버에서 계산)
+ *
+ * ⚠️ 현재 어떤 라우트도 이 함수를 호출하지 않는다. `/api/admin/stats`는 Postgres
+ * RPC `get_diagnostic_stats()`에 위임한다. 그래도 지우지 않는 이유는, 이 함수가
+ * **RPC 집계 규칙을 TypeScript로 읽을 수 있게 옮겨둔 미러**이기 때문이다.
+ * RPC 정의는 `supabase/migrations/20260812081047_*`에 있고, 둘의 계산 규칙은
+ * 같아야 한다. 한쪽만 고치면 다시 어긋난다.
+ */
 export async function getStats() {
   const rows = await getRecentResults(1000);
 
@@ -73,12 +82,14 @@ export async function getStats() {
 
   const total = baseRows.length;
   if (total === 0) {
-    return { total: 0, avgScore: 0, deepRate: 0, stageDistribution: [], avgStageScores: [] };
+    return { total: 0, avgScore: 0, deepRate: 0, ctaRate: 0, stageDistribution: [], avgStageScores: [] };
   }
 
   const avgScore = Math.round(baseRows.reduce((s, r) => s + r.overall_score, 0) / total);
+  // deepRate만 분자에 심화 행이 필요하다(전환율이므로). 나머지는 전부 base 기준.
   const deepCount = rows.filter((r) => r.deep_stage_id != null).length;
   const deepRate = Math.round((deepCount / total) * 100);
+  const ctaRate = Math.round((baseRows.filter((r) => r.cta_clicked).length / total) * 100);
 
   // 최약 Stage 분포
   const dist: Record<number, number> = {};
@@ -105,5 +116,5 @@ export async function getStats() {
     }))
     .sort((a, b) => a.stageId - b.stageId);
 
-  return { total, avgScore, deepRate, stageDistribution, avgStageScores };
+  return { total, avgScore, deepRate, ctaRate, stageDistribution, avgStageScores };
 }

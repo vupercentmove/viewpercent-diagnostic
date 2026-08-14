@@ -214,7 +214,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - ✅ 퍼널 트래킹 (Vercel Analytics) — 완성
 - ✅ 적응형 심화 진단 (DeepQuizStage) — 완성
 - ✅ Supabase 결과 저장 (fire-and-forget) — 완성
-- ⚠️ 벤치마크 집계 필터 — 부분 완성/핸드오프 대기 (코드: `lib/supabase-admin.ts` getStats에 `deep_stage_id IS NULL AND diagnostic_mode <> 'full'` 필터 있음, 하지만 라이브 API는 Supabase RPC `get_diagnostic_stats()` 사용하며 그 RPC에는 아직 이 필터가 없어 운영자가 Supabase에서 수동 패치 필요)
+- ✅ 벤치마크 집계 필터 — 완성 (2026-08-12). 라이브 RPC `get_diagnostic_stats()`에 `deep_stage_id IS NULL AND diagnostic_mode IS DISTINCT FROM 'full'` 반영. **RPC 정의는 이제 `supabase/migrations/`에 있다** (최신 `20260812081047_*`). 저장소 밖에만 있던 과거 적용분 2건도 라이브 statements에서 복원해 커밋했다 — 문서와 실제가 어긋났던 원인이 이것이었으니, RPC를 고칠 땐 마이그레이션 파일을 반드시 함께 남긴다
 
 **정밀 진단 (full) 경로:**
 - ✅ 27문항 Full Deep Quiz Stage — 완성

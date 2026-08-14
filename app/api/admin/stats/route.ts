@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-// base 벤치마크 필터 (Task 8 — 2026-08-12 해소 확인):
+// base 벤치마크 필터 (Task 8 — 2026-08-12 정리 완료):
 // 이 라우트는 집계를 전부 Supabase Postgres RPC `get_diagnostic_stats()`에
-// 위임한다. 함수 본문은 Supabase 프로젝트(vupercent)에만 있고 이 저장소에는
-// 소스가 없다. 한때 정밀(full) 모드가 base 분포를 오염시킬 우려가 있었으나,
-// 2026-08-12 라이브 정의를 직접 조회해 세 집계(총계·stageDistribution·
-// avgStageScores) 모두 `completed = true AND diagnostic_mode <> 'full'`
-// 필터가 들어있고 실행 결과도 quick만 집계됨(quick 12·full 4 중 total=12)을
-// 확인했다. 주의: 이 필터는 diagnostic_mode가 NULL인 행을 제외한다 —
-// 현재 데이터엔 NULL이 없지만, 저장 경로가 mode를 안 싣게 바뀌면 깨진다.
-// RPC를 다시 수정할 일이 있으면 결과를 이 주석에 갱신할 것.
+// 위임한다. **함수 정의는 이제 `supabase/migrations/`에 있다** — 최신은
+// `20260812081047_fix_diagnostic_stats_base_row_filter.sql`. 여기서 다시
+// 추측하지 말고 그 파일을 읽을 것.
+//
+// 그동안 이 주석과 실제 RPC가 계속 어긋났던 이유는 RPC 소스가 저장소 밖에만
+// 있었기 때문이다(2026-07-04·07-19 적용분이 파일로 남지 않았음). 그 둘도
+// 라이브 statements에서 복원해 함께 커밋했다. RPC를 고칠 때는 반드시
+// 마이그레이션 파일을 같이 남긴다.
+//
+// base 분포 정의: `completed = true AND diagnostic_mode IS DISTINCT FROM 'full'
+// AND deep_stage_id IS NULL`. 마지막 조건이 핵심이다 — 심화 완료자는 base 행과
+// 심화 행을 각각 남기므로 빼먹으면 이중집계된다(2026-08-12 수정 전 total이
+// 실제 9인데 12로 잡혔고 deepRate가 56%가 아니라 33%로 나왔다).
+// deepRate만 분자에 심화 행이 필요하므로 base가 아닌 scoped를 쓴다.
 export async function GET() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
