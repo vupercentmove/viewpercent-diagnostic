@@ -141,7 +141,7 @@ intro (모드 선택)
 - **모드별 프롬프트**:
   - `full`: 3연 구조 - [되받기] → [인과] → [트리거]
   - `quick`: 2문장 핵심 인사이트
-- **폴백**: API 오류 시 정적 3문장 코멘트 자동 제공
+- **폴백**: 키 없음·API 오류·수치 날조 시 정적 코멘트 자동 제공 (full 3문장 / quick 2문장)
 - 각 문장 60자 이내, '무조건/꼭' 금지, 느낌표 금지, 부정 표현 두 문장 연속 금지, 진단 결과에 없는 수치·퍼센트 지어내지 않기(제공된 점수 인용은 가능 — 2026-08-12 프로덕션에서 "이탈률 20%" 날조 확인 후 추가, 프롬프트 수정 시 이 가드를 유지할 것)
 
 ## API 엔드포인트
@@ -149,11 +149,13 @@ intro (모드 선택)
 ### POST /api/analyze
 Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **요청**: `{ mode: "quick"|"full", stageScores, overallScore, weakestStage, vision? }`
-- **응답**: `{ comment: string, fallback?: boolean }`
+- **응답**: `{ comment: string, fallback?: true, reason?: "no_key"|"api_error"|"empty_after_clean"|"ungrounded_number" }`
 - **로직**:
   - `mode === "full"`: 3연 프롬프트 ([되받기]→[인과]→[트리거]), full 전용 정적 폴백
-  - `mode === "quick"`: 기존 2문장 프롬프트
-  - API 키 미설정 시: full은 폴백 반환, quick은 503 에러
+  - `mode === "quick"`: 2문장 프롬프트
+  - 키 없음·API 오류: 두 모드 모두 200 + 모드별 정적 폴백 (에러 상태로 끝내지 않음)
+  - 응답 후처리: 라벨·마크다운 제거 → 빈 문자열이거나 진단에 없는 퍼센트·배수가 있으면 폴백으로 교체
+  - 응답 1건마다 `ai_comment_events`에 폴백 여부 기록 (어드민 "AI 폴백률")
 
 ### POST /api/diagnostic-result
 진단 결과를 Supabase에 익명 저장. 벤치마크 집계 및 어드민 통계 용도.
@@ -276,8 +278,9 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **심화 문항은 정방향만**: DeepQuizStage에서는 REVERSE_YN 로직 없음
 - **정밀 진단 문항도 정방향만**: FullDeepQuizStage의 27문항은 모두 정방향
 - **상수 중앙화**: KAKAO_URL 등 전역 상수는 `lib/constants.ts`에서 관리. 하드코딩 금지
+- **단계명 정본은 `lib/stage-meta.ts`의 STAGES**: 파일마다 `STAGE_NAMES` 표를 새로 만들지 말 것. 2026-08-12까지 analyze 라우트·어드민 대시보드가 각자 복제 표를 들고 STAGE 2·3·4를 정본과 다르게(3을 "구매결정"으로) 표시해, AI 프롬프트가 화면과 다른 단계명을 알려주고 있었다
 - **Supabase**: 결과 저장은 fire-and-forget (fetch + keepalive). 오류가 사용자 경험을 막지 않도록
-- **AI 코멘트**: Claude API 오류 시 자동 폴백 코멘트 제공 (full 모드만, quick은 503)
+- **AI 코멘트**: 키 없음·API 오류 시 두 모드 모두 정적 폴백 코멘트 제공(응답에 `fallback`·`reason` 표시). 진단에 없는 퍼센트·배수를 지어내면 `lib/numeric-guard.ts`가 잡아 폴백으로 대체한다. 폴백 여부는 `ai_comment_events` 테이블에 쌓여 어드민 "AI 폴백률" 타일로 보인다
 - **GitHub**: org `vupercentmove`, repo `viewpercent-diagnostic`
 
 ## 커맨드
