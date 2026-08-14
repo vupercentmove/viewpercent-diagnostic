@@ -12,6 +12,18 @@ export const runtime = "nodejs";
 // 확인했다. 주의: 이 필터는 diagnostic_mode가 NULL인 행을 제외한다 —
 // 현재 데이터엔 NULL이 없지만, 저장 경로가 mode를 안 싣게 바뀌면 깨진다.
 // RPC를 다시 수정할 일이 있으면 결과를 이 주석에 갱신할 것.
+//
+// 2026-08-12 (지표 정직화 브랜치 병합분):
+// · getStats()는 아무도 호출하지 않는 죽은 코드여서 삭제했다. 이 라우트가
+//   쓰는 집계는 전적으로 RPC다.
+// · RPC가 반환하는 ctaRate는 화면에서 더 이상 읽지 않는다 — diagnostic_results의
+//   cta_clicked를 true로 바꾸는 경로가 앱 코드에 없어 구조적으로 항상 0이었다
+//   (16건 전수 false 확인). 실제 클릭은 Vercel Analytics의 cta_kakao_click에만
+//   쌓인다. RPC 자체는 레포 밖 자산이라 수정하지 않았다.
+// · 운영 DB의 배선 실증 행(utm->>'ref' = 'wiring-test', id 7021ebb6)을
+//   completed = false로 바꿨다. 행은 보존했다. getRecentResults가
+//   completed=eq.true만 가져오므로 그 행이 화면에 안 오는 진짜 이유가 이것이고,
+//   lib/inflow-source.ts의 WIRING_TEST_REF 제외는 이중 안전장치다.
 export async function GET() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
@@ -50,7 +62,7 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      ...(stats ?? { total: 0, avgScore: 0, deepRate: 0, ctaRate: 0, stageDistribution: [], avgStageScores: [] }),
+      ...(stats ?? { total: 0, avgScore: 0, deepRate: 0, stageDistribution: [], avgStageScores: [] }),
       aiComment,
     });
   } catch (err) {

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ConsultingToolReference from "@/components/admin/ConsultingToolReference";
 import { STAGES } from "@/lib/stage-meta";
+import { aggregateInflowSources } from "@/lib/inflow-source";
+import type { DiagnosticRow } from "@/lib/supabase-admin";
 
 /** 단계명 정본은 lib/stage-meta.ts — 여기서 표를 따로 만들지 말 것 */
 const stageName = (id: number) => STAGES.find((s) => s.id === id)?.name ?? `STAGE ${id}`;
@@ -12,7 +14,6 @@ interface Stats {
   total: number;
   avgScore: number;
   deepRate: number;
-  ctaRate: number;
   stageDistribution: { stageId: number; count: number }[];
   avgStageScores: { stageId: number; avg: number }[];
   /** AI 코멘트 폴백률 — 별도 RPC라 조회 실패 시 null */
@@ -22,15 +23,6 @@ interface Stats {
     fallbackRate: number;
     byReason: { reason: string; count: number }[];
   } | null;
-}
-
-interface Result {
-  id: string;
-  created_at: string;
-  overall_score: number;
-  weakest_stage: number;
-  has_gap: boolean;
-  deep_stage_id: number | null;
 }
 
 function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {
@@ -49,7 +41,7 @@ function ScoreBar({ value, max = 100 }: { value: number; max?: number }) {
 export default function Dashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
-  const [results, setResults] = useState<Result[]>([]);
+  const [results, setResults] = useState<DiagnosticRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   /** 결과 목록만 실패한 경우 — 통계는 살아있으므로 대시보드는 유지하고 이 섹션에만 표시 */
@@ -87,6 +79,9 @@ export default function Dashboard() {
     router.push("/admin/login");
   };
 
+  const inflow = aggregateInflowSources(results);
+  const inflowTotal = inflow.reduce((sum, i) => sum + i.count, 0);
+
   return (
     <div className="max-w-3xl mx-auto p-5">
       {/* 헤더 */}
@@ -118,29 +113,45 @@ export default function Dashboard() {
       {stats && (
         <>
           {/* 상단 지표 */}
+          {/*
+            「카톡 CTA 전환율」은 2026-08-12에 제거했다.
+            RPC get_diagnostic_stats()의 ctaRate는 diagnostic_results.cta_clicked를 세는데,
+            앱의 insert payload(lib/supabase.ts DiagnosticResultRow)에 그 필드가 없어
+            true로 바뀌는 경로가 코드에 존재하지 않는다 — 16건 전수 false 확인.
+            실제 CTA 클릭은 Vercel Analytics의 cta_kakao_click에만 쌓인다.
+            되살리려면 먼저 그 배선부터 만들 것.
+            스펙: docs/superpowers/specs/2026-08-11-진단OS-지표-정직화-design.md
+          */}
           <div className="grid grid-cols-4 gap-3 mb-6">
             {[
-              { label: "총 완료", value: `${stats.total}건` },
-              { label: "평균 점수", value: `${stats.avgScore}점` },
-              { label: "심화 진단율", value: `${stats.deepRate}%` },
-              { label: "카톡 CTA 전환율", value: `${stats.ctaRate}%` },
+              { label: "총 완료", value: `${stats.total}건`, note: "빠른 진단 완료 · Supabase RPC" },
+              { label: "평균 점수", value: `${stats.avgScore}점`, note: `분모 ${stats.total}건 · Supabase RPC` },
+              { label: "심화 진단율", value: `${stats.deepRate}%`, note: `분모 ${stats.total}건 · Supabase RPC` },
               {
                 label: "AI 폴백률",
                 value: stats.aiComment
                   ? `${stats.aiComment.fallbackRate}% (${stats.aiComment.fallbackCount}/${stats.aiComment.total})`
                   : "집계 없음",
+                // 분모가 위 셋과 다른 모집단이다 — 진단 완료 건수가 아니라 AI 코멘트 호출 건수이고,
+                // 출처도 get_diagnostic_stats가 아니라 별도 RPC(get_ai_comment_stats)다.
+                note: stats.aiComment
+                  ? `분모 ${stats.aiComment.total}건 · AI 코멘트 호출 기준 · 별도 RPC`
+                  : "별도 RPC 응답 없음",
               },
             ].map((m) => (
               <div key={m.label} className="bg-white rounded-xl border border-gray-100 p-4 text-center">
                 <p className="text-2xl font-bold text-gray-900">{m.value}</p>
                 <p className="text-xs text-gray-400 mt-1">{m.label}</p>
+                <p className="text-[10px] text-gray-300 mt-0.5 leading-tight">{m.note}</p>
               </div>
             ))}
           </div>
 
           {/* Stage별 평균 점수 */}
           <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Stage별 평균 점수</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              Stage별 평균 점수 <span className="font-normal text-gray-400">(분모 {stats.total}건 · Supabase RPC)</span>
+            </h2>
             <div className="flex flex-col gap-2">
               {stats.avgStageScores.map(({ stageId, avg }) => (
                 <div key={stageId}>
@@ -155,7 +166,9 @@ export default function Dashboard() {
 
           {/* 최약 Stage 분포 */}
           <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">최약 Stage 분포 (사용자 기준)</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              최약 Stage 분포 <span className="font-normal text-gray-400">(분모 {stats.total}건 · Supabase RPC)</span>
+            </h2>
             <div className="flex flex-col gap-1.5">
               {stats.stageDistribution.map(({ stageId, count }) => (
                 <div key={stageId} className="flex items-center gap-2 text-xs text-gray-600">
@@ -170,6 +183,36 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* 유입경로별 완료 */}
+          <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              유입경로별 완료 <span className="font-normal text-gray-400">(분모 {inflowTotal}건 · 최근 30건 조회분 · Supabase)</span>
+            </h2>
+            {results.length === 0 ? (
+              <p className="text-xs text-gray-400">아직 완료된 진단이 없습니다.</p>
+            ) : inflowTotal === 0 ? (
+              <p className="text-xs text-gray-400">집계 대상 건이 없습니다.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {inflow.map(({ source, count }) => (
+                  <div key={source} className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="w-24 shrink-0">{source}</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-vp-blue/60 rounded-full"
+                        style={{ width: `${Math.round((count / inflowTotal) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="w-12 text-right">{count}건</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-gray-300 mt-2 leading-tight">
+              ref 없이 들어온 건은 「미상」으로 표시합니다. 완료가 30건을 넘으면 이 카드는 최근 30건만 반영하므로 별도 집계가 필요합니다. 배선 실증 레코드(ref=wiring-test)는 집계에서 제외됩니다.
+            </p>
           </div>
 
           {/* 최근 결과 목록 */}
