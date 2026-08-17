@@ -61,4 +61,26 @@ describe("resolveComment — 수치 가드", () => {
   it("allowedNumbers를 안 넘기면 모든 성과 수치를 근거 없음으로 본다", () => {
     expect(resolveComment("전환이 10% 올라요", FALLBACK).reason).toBe("ungrounded_number");
   });
+
+  // 2026-08-17 프로덕션 실측: 최약이 STAGE 3인데 코멘트는 STAGE 4(90점)를 지목했다.
+  // 헤로와 코멘트가 한 화면에서 다른 단계를 말해 결과 신뢰도를 깎았다.
+  it("최약 단계가 아닌 다른 단계만 지목하면 wrong_stage로 폴백한다", () => {
+    const observed =
+      "지금 상품 페이지까지는 고객을 잘 데려오는데 실제 구매 결정 단계에서 이탈이 생기고 있네요.";
+    expect(resolveComment(observed, FALLBACK, [], 3)).toEqual({
+      comment: FALLBACK,
+      fallback: true,
+      reason: "wrong_stage",
+    });
+  });
+
+  it("최약 단계를 함께 말하면 다른 단계를 언급해도 통과한다", () => {
+    const ok = "쇼핑의 시작에서 막혀요. 구매결정까지는 잘 오고 있어요.";
+    expect(resolveComment(ok, FALLBACK, [], 3)).toEqual({ comment: ok });
+  });
+
+  it("weakestStage를 안 넘기면 단계 가드를 적용하지 않는다 (기존 호출부 호환)", () => {
+    const observed = "실제 구매 결정 단계에서 이탈이 생기고 있네요.";
+    expect(resolveComment(observed, FALLBACK).comment).toBe(observed);
+  });
 });

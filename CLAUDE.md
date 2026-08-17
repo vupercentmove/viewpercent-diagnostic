@@ -141,15 +141,18 @@ intro (모드 선택)
 - **모드별 프롬프트**:
   - `full`: 3연 구조 - [되받기] → [인과] → [트리거]
   - `quick`: 2문장 핵심 인사이트
-- **폴백**: 키 없음·API 오류·수치 날조 시 정적 코멘트 자동 제공 (full 3문장 / quick 2문장)
+- **폴백**: 키 없음·API 오류·수치 날조·단계 불일치 시 정적 코멘트 자동 제공 (full 3문장 / quick 2문장)
 - 각 문장 60자 이내, '무조건/꼭' 금지, 느낌표 금지, 부정 표현 두 문장 연속 금지, 진단 결과에 없는 수치·퍼센트 지어내지 않기(제공된 점수 인용은 가능 — 2026-08-12 프로덕션에서 "이탈률 20%" 날조 확인 후 추가, 프롬프트 수정 시 이 가드를 유지할 것)
+- 호칭은 '대표님'(‘당신’ 금지), 존댓말 종결(‘~거야요’처럼 반말·존댓말 혼용 금지)
+- ⚠️ **full 프롬프트에는 6단계 점수를 전부 넘긴다.** 2026-08-17까지 최약 단계 한 줄만 넘겨서, 맥락이 없는 AI가 진단이 짚지 않은 단계를 지목했다(최약 STAGE 3인데 코멘트는 90점짜리 STAGE 4를 원인으로 말함 — 헤로와 코멘트가 한 화면에서 다른 단계를 가리켰다). 프롬프트를 줄일 때 이 점수 블록을 빼지 말 것
+- 최약 단계가 아닌 단계만 지목하면 `lib/stage-guard.ts`가 잡아 폴백시킨다(`reason: "wrong_stage"`). 단계명 비교는 공백을 지우고 한다 — 정본은 `구매결정`인데 AI는 `구매 결정`으로 쓴다
 
 ## API 엔드포인트
 
 ### POST /api/analyze
 Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **요청**: `{ mode: "quick"|"full", stageScores, overallScore, weakestStage, vision? }`
-- **응답**: `{ comment: string, fallback?: true, reason?: "no_key"|"api_error"|"empty_after_clean"|"ungrounded_number" }`
+- **응답**: `{ comment: string, fallback?: true, reason?: "no_key"|"api_error"|"empty_after_clean"|"ungrounded_number"|"wrong_stage" }`
 - **로직**:
   - `mode === "full"`: 3연 프롬프트 ([되받기]→[인과]→[트리거]), full 전용 정적 폴백
   - `mode === "quick"`: 2문장 프롬프트

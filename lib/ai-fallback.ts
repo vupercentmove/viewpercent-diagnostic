@@ -7,6 +7,7 @@
  */
 import { cleanComment } from "@/lib/clean-comment";
 import { findUngroundedMetrics } from "@/lib/numeric-guard";
+import { mentionsWrongStageOnly } from "@/lib/stage-guard";
 
 /** AI 코멘트를 요청한 진단 모드 */
 export type AiCommentMode = "quick" | "full";
@@ -17,6 +18,7 @@ export type AiFallbackReason =
   | "api_error" // Claude API 호출 예외
   | "empty_after_clean" // AI는 응답했으나 정리 후 빈 문자열
   | "ungrounded_number" // 진단에 없는 성과 수치를 지어냄
+  | "wrong_stage" // 최약 단계가 아닌 다른 단계를 문제 지점으로 지목
   | "network"; // 클라이언트 fetch 자체 실패
 
 /** /api/analyze 응답 본문 */
@@ -35,12 +37,18 @@ export interface AiCommentPayload {
 export function resolveComment(
   rawText: string,
   fallbackText: string,
-  allowedNumbers: number[] = []
+  allowedNumbers: number[] = [],
+  weakestStage?: number
 ): AiCommentPayload {
   const cleaned = cleanComment(rawText);
   if (!cleaned) return { comment: fallbackText, fallback: true, reason: "empty_after_clean" };
   if (findUngroundedMetrics(cleaned, allowedNumbers).length > 0) {
     return { comment: fallbackText, fallback: true, reason: "ungrounded_number" };
+  }
+  // 화면 헤로가 말하는 단계와 코멘트가 어긋나면 폴백. 한 화면에서 두 단계를
+  // 말하는 것이 근거 없는 수치보다 신뢰를 더 크게 깎는다.
+  if (weakestStage !== undefined && mentionsWrongStageOnly(cleaned, weakestStage)) {
+    return { comment: fallbackText, fallback: true, reason: "wrong_stage" };
   }
   return { comment: cleaned };
 }
@@ -49,7 +57,8 @@ export function resolveComment(
 export function resolveFullComment(
   rawText: string,
   fallbackText: string,
-  allowedNumbers: number[] = []
+  allowedNumbers: number[] = [],
+  weakestStage?: number
 ): AiCommentPayload {
-  return resolveComment(rawText, fallbackText, allowedNumbers);
+  return resolveComment(rawText, fallbackText, allowedNumbers, weakestStage);
 }
