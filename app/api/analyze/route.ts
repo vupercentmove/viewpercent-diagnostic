@@ -130,8 +130,21 @@ export async function POST(request: Request) {
     mode === "full"
       ? `당신은 여성의류 이커머스 퍼널 진단 코치입니다. 아래 결과를 보고, 대표에게 직접 말하듯 자연스러운 3문장으로 인사이트를 전하세요.
 문장 순서: (1) 대표가 지금 하고 있는 것을 사실로 짚기 → (2) 그래서 어디가 막히는지 이유 → (3) 무엇 하나를 하면 효과가 어떻게 오르는지.
-출력 형식(반드시): 라벨·머리말·번호("되받기"·"인과"·"트리거"·"1)" 등)를 절대 쓰지 말고, 별표(**)나 마크다운 없이 그냥 자연스러운 문장 3개만 쓰세요. 존댓말, 느낌표·'무조건/꼭' 금지, 마케팅 문구 금지, 진단 결과에 없는 수치·퍼센트 지어내지 않기(제공된 점수 인용은 가능), 각 문장 60자 이내.
-가장 약한 단계: STAGE ${weakestStage} ${stageName(weakestStage)} (${weakScore}점)${vision ? `\n대표의 바람: ${vision}` : ""}`
+
+진단 결과 (6단계 전체):
+${stageScores
+  .slice()
+  .sort((a, b) => a.stageId - b.stageId)
+  .map((s) => `  STAGE ${s.stageId} ${stageName(s.stageId)}: ${s.score}점`)
+  .join("\n")}
+- 종합 점수: ${overallScore}점
+- 가장 약한 단계: STAGE ${weakestStage} ${stageName(weakestStage)} (${weakScore}점)${vision ? `\n- 대표의 바람: ${vision}` : ""}
+
+출력 형식(반드시): 라벨·머리말·번호("되받기"·"인과"·"트리거"·"1)" 등)를 절대 쓰지 말고, 별표(**)나 마크다운 없이 그냥 자연스러운 문장 3개만 쓰세요.
+- 막히는 지점으로 지목할 단계는 오직 '${stageName(weakestStage)}' 하나뿐입니다. 점수가 더 높은 다른 단계를 문제 지점으로 말하지 마세요.
+- 호칭은 '대표님'입니다. '당신'을 쓰지 마세요.
+- 존댓말로 끝맺으세요(~예요/~습니다). '~거야요'처럼 반말과 존댓말을 섞지 마세요.
+- 느낌표·'무조건/꼭' 금지, 마케팅 문구 금지, 진단 결과에 없는 수치·퍼센트 지어내지 않기(제공된 점수 인용은 가능), 각 문장 60자 이내.`
       : buildQuickPrompt(body);
 
   try {
@@ -146,7 +159,12 @@ export async function POST(request: Request) {
     // AI가 라벨(**되받기** 등)·마크다운을 뱉어도 화면엔 자연스러운 문장만 나가도록 정리하고,
     // 정리 후 빈 문자열이거나 진단에 없는 성과 수치를 지어냈으면 정적 폴백으로 대체한다.
     return respond(
-      resolveComment(rawText, buildFallback(mode, weakestStage, weakScore), allowedNumbers),
+      resolveComment(
+        rawText,
+        buildFallback(mode, weakestStage, weakScore),
+        allowedNumbers,
+        weakestStage
+      ),
       mode
     );
   } catch (err) {
