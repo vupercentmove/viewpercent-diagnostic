@@ -82,7 +82,7 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
                 </>
               ) : (
                 <>
-                  <span className="text-[12px] text-white/60">지금 우리보다 앞서 있는 브랜드가</span>
+                  <span className="text-[12px] text-white/60">전체 점수 기준, 우리보다 앞서 있는 브랜드가</span>
                   <span className="text-[18px] font-semibold text-vp-blue-light leading-none">
                     약 {benchmark.overallTopPercent}%
                   </span>

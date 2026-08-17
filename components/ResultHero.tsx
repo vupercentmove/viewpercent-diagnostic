@@ -53,7 +53,10 @@ export default function ResultHero({
       {/* 업계 벤치마크 — 상대 위치 */}
       {benchmark && (
         <div className="mt-6 pt-5 border-t border-white/10">
-          {/* 상위 50% 밖이면 "상위 N%"가 성취처럼 오독되므로, 앞선 브랜드 비율로 방향을 명시한다 */}
+          {/* 상위 50% 밖이면 "상위 N%"가 성취처럼 오독되므로, 앞선 브랜드 비율로 방향을 명시한다.
+              ⚠️ 두 분기 모두 "전체 점수"라는 기준을 문장에 넣는다. 아래 PriorityCard가
+              같은 화면에서 '단계 기준' 비율을 따로 보여주기 때문에, 기준을 빼면 두 숫자가
+              같은 것의 다른 값처럼 읽힌다(실측 사례: 히어로 89% · 1순위 95%). */}
           <div className="flex items-baseline gap-2 flex-wrap">
             {benchmark.overallTopPercent <= 50 ? (
               <>
@@ -67,7 +70,7 @@ export default function ResultHero({
             ) : (
               <>
                 <span className="text-[12px] text-white/60">
-                  지금 우리보다 앞서 있는 브랜드가
+                  전체 점수 기준, 우리보다 앞서 있는 브랜드가
                 </span>
                 <span className="text-[20px] font-semibold text-vp-blue-light leading-none">
                   약 {benchmark.overallTopPercent}%
