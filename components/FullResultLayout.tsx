@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { STAGES } from "@/lib/stage-meta";
-import type { Answers } from "@/lib/scoring";
+import { getTag, type Answers } from "@/lib/scoring";
 import { calcFullDeepStageScores, getFullWeakestStage, subAreaBreakdown } from "@/lib/full-deep-scoring";
 import { getExplainer } from "@/lib/full-deep-content";
 import { getBenchmark } from "@/lib/benchmark";
@@ -42,6 +42,11 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
 
   const weakestName = weakest ? STAGES[weakest.stageId - 1].name : null;
 
+  // 최약 구간마저 양호(≥70)면 "새고 있다"는 절대 표현이 사실과 어긋난다.
+  // 아래 카드는 상대 순위일 뿐이므로, 그때는 '먼저 볼 곳'이라는 상대 표현으로 바꾼다.
+  // (카피 정본: "새다"는 돈이 빠져나간 결과를 가리키는 말이다)
+  const allStagesGood = weakest ? getTag(weakest.score) === "good" : false;
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -61,13 +66,16 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
           diagnostic result · 정밀 진단
         </p>
         <h2 className="text-[20px] font-medium leading-[1.4] mb-2">
-          {weakestName
-            ? `6단계를 전부 봤어요. 지금은 '${weakestName}'에서 새고 있어요.`
-            : "6단계를 전부 봤어요. 먼저 확인이 필요한 영역부터 같이 보면 돼요."}
+          {!weakestName
+            ? "6단계를 전부 봤어요. 먼저 확인이 필요한 영역부터 같이 보면 돼요."
+            : allStagesGood
+              ? "6단계를 전부 봤어요. 크게 새는 구간 없이 돌아가고 있어요."
+              : `6단계를 전부 봤어요. 지금은 '${weakestName}'에서 새고 있어요.`}
         </h2>
         <p className="text-[13px] text-white/70 leading-relaxed">
-          아래 카드가 가장 새는 세 구간이에요. 세부 영역까지 내려가면 먼저 손볼
-          곳이 보입니다.
+          {allStagesGood
+            ? `그중 먼저 볼 곳은 '${weakestName}'이에요. 세부 영역까지 내려가면 더 다듬을 곳이 보입니다.`
+            : "아래 카드가 가장 새는 세 구간이에요. 세부 영역까지 내려가면 먼저 손볼 곳이 보입니다."}
         </p>
         {benchmark && (
           <div className="mt-5 pt-4 border-t border-white/10">
@@ -128,7 +136,11 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
       )}
 
       {vision && (
-        <p className="text-[13px] text-gray-700 leading-relaxed px-1">말씀하신 그 방향을 위해서라도, 지금 새는 {weakest ? STAGES[weakest.stageId - 1].name : "이 지점"}부터 같이 보면 돼요.</p>
+        <p className="text-[13px] text-gray-700 leading-relaxed px-1">
+          {allStagesGood
+            ? `말씀하신 그 방향을 위해서라도, 먼저 볼 ${weakestName ?? "이 지점"}부터 같이 보면 돼요.`
+            : `말씀하신 그 방향을 위해서라도, 지금 새는 ${weakestName ?? "이 지점"}부터 같이 보면 돼요.`}
+        </p>
       )}
       <a href={buildKakaoUrl(weakest ? `full_${weakest.stageId}` : "full")} target="_blank" rel="noopener" onClick={() => trackFullCtaClick(variant)} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">이 빈틈, 카톡으로 봐드릴게요</a>
       <button
