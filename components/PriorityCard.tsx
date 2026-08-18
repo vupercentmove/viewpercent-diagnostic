@@ -45,8 +45,10 @@ export default function PriorityCard({
       {/* 업계 벤치마크 — 이 단계의 상대 위치 (개선 여지 강조) */}
       {showBenchmark && (
         <div className="bg-vp-blue/[0.06] border border-vp-blue/15 rounded-lg p-4 mb-4">
+          {/* "이 단계만 보면"으로 시작해 히어로의 전체 점수 기준과 대비시킨다.
+              두 숫자는 모집단이 아니라 기준(전체 vs 단계)이 달라서 다르다. */}
           <p className="text-[13px] text-gray-700 leading-relaxed">
-            이 단계는 진단한 브랜드의{" "}
+            이 단계만 보면, 진단한 브랜드의{" "}
             <span className="font-semibold text-vp-blue">
               약 {benchmark!.weakestStageAheadPercent}%
             </span>
