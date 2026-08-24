@@ -282,8 +282,10 @@ function QuestionCard({
       aria-label={`${stepLabel}: ${question.text}`}
       className="p-4 bg-gray-50 rounded-lg focus-visible:ring-2 focus-visible:ring-vp-blue focus-visible:ring-offset-2"
     >
-      <p className="text-[14.5px] leading-relaxed mb-1.5">{question.text}</p>
-      <QuestionExample questionId={question.id} />
+      <div className="mb-3 flex flex-col gap-1.5">
+        <p className="text-[14.5px] leading-relaxed">{question.text}</p>
+        <QuestionExample questionId={question.id} />
+      </div>
 
       {question.answerType === "yn" ? (
         <div

@@ -194,8 +194,10 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
       )}
       <div className="p-4 bg-gray-50 rounded-lg">
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 font-medium">{q.subArea}</span>
-        <p className="text-[14.5px] leading-relaxed mt-3 mb-1.5">{q.text}</p>
-        <QuestionExample questionId={q.id} />
+        <div className="mt-3 mb-3 flex flex-col gap-1.5">
+          <p className="text-[14.5px] leading-relaxed">{q.text}</p>
+          <QuestionExample questionId={q.id} />
+        </div>
         {!reviewMode ? (
           <>
             {q.answerType === "yn" ? (
