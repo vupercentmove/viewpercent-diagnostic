@@ -7,6 +7,7 @@ import { LIKERT_ANCHOR_LOW, LIKERT_ANCHOR_HIGH, LIKERT_OPTION_LABEL } from "@/li
 import { UNKNOWN_ANSWER, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
 import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals, getQuestionInsight } from "@/lib/full-deep-content";
 import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement, trackQuizAnswer, trackQuestionInsightToggle } from "@/lib/analytics";
+import QuestionExample from "@/components/QuestionExample";
 
 const STAGE_IDS = STAGES.map((s) => s.id);
 type Mode = "quiz" | "explainer" | "icp" | "vision" | "coach";
@@ -193,7 +194,8 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
       )}
       <div className="p-4 bg-gray-50 rounded-lg">
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 font-medium">{q.subArea}</span>
-        <p className="text-[14.5px] leading-relaxed my-3">{q.text}</p>
+        <p className="text-[14.5px] leading-relaxed mt-3 mb-1.5">{q.text}</p>
+        <QuestionExample questionId={q.id} />
         {!reviewMode ? (
           <>
             {q.answerType === "yn" ? (
