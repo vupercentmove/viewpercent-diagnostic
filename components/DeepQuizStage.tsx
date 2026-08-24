@@ -6,6 +6,7 @@ import { getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions
 import { likertToScore, ynToScore, type Answers } from "@/lib/scoring";
 import { LIKERT_ANCHOR_LOW, LIKERT_ANCHOR_HIGH, LIKERT_OPTION_LABEL } from "@/lib/likert-scale";
 import { trackQuizAnswer, trackEncouragement } from "@/lib/analytics";
+import QuestionExample from "@/components/QuestionExample";
 import {
   nextIndex,
   prevIndex,
@@ -296,7 +297,10 @@ function DeepQuestionCard({
           {question.subArea}
         </span>
       </div>
-      <p className="text-[14.5px] leading-relaxed mb-3">{question.text}</p>
+      <div className="mb-3 flex flex-col gap-1.5">
+        <p className="text-[14.5px] leading-relaxed">{question.text}</p>
+        <QuestionExample questionId={question.id} />
+      </div>
 
       {question.answerType === "yn" ? (
         <div

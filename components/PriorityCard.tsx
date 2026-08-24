@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 import { STAGES } from "@/lib/stage-meta";
-import { type Answers, buildEcho, LOSS_AVERSION_LINE } from "@/lib/scoring";
+import { type Answers, buildEcho, getTag, LOSS_AVERSION_LINE } from "@/lib/scoring";
 import { trackEchoView } from "@/lib/analytics";
 import type { BenchmarkResult } from "@/lib/benchmark";
+import { getStageExample } from "@/lib/stage-examples";
 
 interface PriorityCardProps {
   worstStageId: number;
@@ -23,6 +24,9 @@ export default function PriorityCard({
   const showBenchmark =
     benchmark && benchmark.weakestStageId === worstStageId;
   const echo = buildEcho(answers, worstStageId);
+  // 최약 단계가 양호(≥70)면 새는 구간이 아니므로 "이 구간이 얇으면 보통 이렇습니다"류의
+  // 누수 서술을 붙이지 않는다 (97a3448의 전 구간 양호 가드를 이 예시에도 적용).
+  const stageExample = getTag(worstScore) === "good" ? "" : getStageExample(worstStageId);
 
   useEffect(() => {
     if (echo) trackEchoView("priority", worstStageId, echo.questionId);
@@ -75,6 +79,12 @@ export default function PriorityCard({
           아니라, 이 질문에 &lsquo;예&rsquo;라고 확신할 수 있는지.
         </p>
       </div>
+
+      {stageExample && (
+        <p className="text-[12.5px] text-gray-500 leading-relaxed mb-4">
+          {stageExample}
+        </p>
+      )}
 
       {/* 개인화 되비춤 — 대표가 직접 답한 내용을 되짚어줌 */}
       {echo && (
