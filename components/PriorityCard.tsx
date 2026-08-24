@@ -5,6 +5,7 @@ import { STAGES } from "@/lib/stage-meta";
 import { type Answers, buildEcho, LOSS_AVERSION_LINE } from "@/lib/scoring";
 import { trackEchoView } from "@/lib/analytics";
 import type { BenchmarkResult } from "@/lib/benchmark";
+import { getStageExample } from "@/lib/stage-examples";
 
 interface PriorityCardProps {
   worstStageId: number;
@@ -75,6 +76,12 @@ export default function PriorityCard({
           아니라, 이 질문에 &lsquo;예&rsquo;라고 확신할 수 있는지.
         </p>
       </div>
+
+      {getStageExample(worstStageId) && (
+        <p className="text-[12.5px] text-gray-500 leading-relaxed mb-4">
+          {getStageExample(worstStageId)}
+        </p>
+      )}
 
       {/* 개인화 되비춤 — 대표가 직접 답한 내용을 되짚어줌 */}
       {echo && (

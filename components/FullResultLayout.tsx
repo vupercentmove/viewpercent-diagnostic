@@ -6,6 +6,7 @@ import { calcFullDeepStageScores, getFullWeakestStage, subAreaBreakdown } from "
 import { getExplainer } from "@/lib/full-deep-content";
 import { getBenchmark } from "@/lib/benchmark";
 import { buildStageEvidence, hasEvidence } from "@/lib/full-deep-evidence";
+import { getStageExample } from "@/lib/stage-examples";
 import RadarChart from "@/components/RadarChart";
 import StageScoreList from "@/components/StageScoreList";
 import StrengthBox from "@/components/StrengthBox";
@@ -172,6 +173,11 @@ function WeakestStageCard({ stage, answers }: { stage: StageScore; answers: Answ
       {/* 두괄식: 왜 봤나(의도) + 이렇게 가면 됨(행동) 먼저 */}
       <p className="text-[12.5px] text-gray-500 leading-relaxed mt-1.5">{ex.why}</p>
       <p className="text-[12.5px] text-vp-blue leading-relaxed">→ {ex.goodLooksLike}</p>
+      {getStageExample(stage.stageId) && (
+        <p className="text-[12.5px] text-gray-500 leading-relaxed mt-2">
+          {getStageExample(stage.stageId)}
+        </p>
+      )}
 
       {/* 판정 근거 되짚기 — 해석은 붙이지 않고 응답한 영역만 그대로 */}
       {hasEvidence(evidence) && (
