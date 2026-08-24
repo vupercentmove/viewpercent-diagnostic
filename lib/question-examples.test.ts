@@ -26,4 +26,27 @@ describe("question-examples", () => {
   it("getQuestionExample: 있는 id는 해당 예시", () => {
     expect(getQuestionExample("d4a")).toBe(QUESTION_EXAMPLE["d4a"]);
   });
+
+  // docs/진단-언어-원칙-2026-07-25.md — 자기채점 부사와 단정 표현을 막는다
+  const BANNED = ["충분히", "전략적으로", "적극적으로", "의도적으로", "무조건", "꼭", "무료", "당신"];
+
+  it("카피 정본 금지어가 없다", () => {
+    for (const [id, text] of Object.entries(QUESTION_EXAMPLE)) {
+      for (const word of BANNED) {
+        expect(text, `${id}에 '${word}'가 있다`).not.toContain(word);
+      }
+    }
+  });
+
+  it("느낌표를 쓰지 않는다", () => {
+    for (const [id, text] of Object.entries(QUESTION_EXAMPLE)) {
+      expect(text, `${id}에 느낌표가 있다`).not.toContain("!");
+    }
+  });
+
+  it("성과를 약속하지 않는다", () => {
+    for (const [id, text] of Object.entries(QUESTION_EXAMPLE)) {
+      expect(text, `${id}가 성과를 약속한다`).not.toMatch(/더 팔|매출이 오|전환이 오|늘어납니다/);
+    }
+  });
 });
