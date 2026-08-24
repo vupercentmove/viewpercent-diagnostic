@@ -55,7 +55,7 @@ lib/
   analytics.ts        # 이벤트 트래킹 함수들
   constants.ts        # 전역 상수 (KAKAO_URL 등)
   supabase.ts         # Supabase 클라이언트 + 타입
-  question-examples.ts # 문항별 예시 (문항 id → "어디서 확인하는가" 한 줄)
+  question-examples.ts    # 문항별 예시 (문항 id → "어디서 확인하는가" 한 줄)
   stage-examples.ts   # 단계별 해석 예시 (결과 화면 약점 단계 1개에만 사용)
 ```
 
