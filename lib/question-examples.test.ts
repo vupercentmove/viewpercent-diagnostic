@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { QUICK_QUESTIONS } from "./questions";
 import { DEEP_QUESTIONS } from "./deep-questions";
 import { QUESTION_EXAMPLE, getQuestionExample } from "./question-examples";
+import { BANNED_WORDS, PERFORMANCE_PROMISE_PATTERN } from "./copy-canon";
 
 const ALL_IDS = [
   ...QUICK_QUESTIONS.map((q) => q.id),
@@ -27,12 +28,9 @@ describe("question-examples", () => {
     expect(getQuestionExample("d4a")).toBe(QUESTION_EXAMPLE["d4a"]);
   });
 
-  // docs/진단-언어-원칙-2026-07-25.md — 자기채점 부사와 단정 표현을 막는다
-  const BANNED = ["충분히", "전략적으로", "적극적으로", "의도적으로", "무조건", "꼭", "무료", "당신"];
-
   it("카피 정본 금지어가 없다", () => {
     for (const [id, text] of Object.entries(QUESTION_EXAMPLE)) {
-      for (const word of BANNED) {
+      for (const word of BANNED_WORDS) {
         expect(text, `${id}에 '${word}'가 있다`).not.toContain(word);
       }
     }
@@ -46,7 +44,7 @@ describe("question-examples", () => {
 
   it("성과를 약속하지 않는다", () => {
     for (const [id, text] of Object.entries(QUESTION_EXAMPLE)) {
-      expect(text, `${id}가 성과를 약속한다`).not.toMatch(/더 팔|매출이 오|전환이 오|늘어납니다/);
+      expect(text, `${id}가 성과를 약속한다`).not.toMatch(PERFORMANCE_PROMISE_PATTERN);
     }
   });
 });

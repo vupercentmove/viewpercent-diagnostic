@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { STAGES } from "./stage-meta";
 import { STAGE_EXAMPLE, getStageExample } from "./stage-examples";
+import { BANNED_WORDS, PERFORMANCE_PROMISE_PATTERN } from "./copy-canon";
 
 describe("stage-examples", () => {
   it("6단계 전부에 예시가 있다", () => {
@@ -16,11 +17,17 @@ describe("stage-examples", () => {
   });
 
   it("금지어·느낌표가 없다", () => {
-    const BANNED = ["충분히", "전략적으로", "적극적으로", "의도적으로", "무조건", "꼭", "무료", "당신", "!"];
+    const BANNED = [...BANNED_WORDS, "!"];
     for (const [id, text] of Object.entries(STAGE_EXAMPLE)) {
       for (const w of BANNED) {
         expect(text, `stage ${id}에 '${w}'가 있다`).not.toContain(w);
       }
+    }
+  });
+
+  it("성과를 약속하지 않는다", () => {
+    for (const [id, text] of Object.entries(STAGE_EXAMPLE)) {
+      expect(text, `stage ${id}가 성과를 약속한다`).not.toMatch(PERFORMANCE_PROMISE_PATTERN);
     }
   });
 

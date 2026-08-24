@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { STAGES } from "@/lib/stage-meta";
-import { type Answers, buildEcho, LOSS_AVERSION_LINE } from "@/lib/scoring";
+import { type Answers, buildEcho, getTag, LOSS_AVERSION_LINE } from "@/lib/scoring";
 import { trackEchoView } from "@/lib/analytics";
 import type { BenchmarkResult } from "@/lib/benchmark";
 import { getStageExample } from "@/lib/stage-examples";
@@ -24,6 +24,9 @@ export default function PriorityCard({
   const showBenchmark =
     benchmark && benchmark.weakestStageId === worstStageId;
   const echo = buildEcho(answers, worstStageId);
+  // 최약 단계가 양호(≥70)면 새는 구간이 아니므로 "이 구간이 얇으면 보통 이렇습니다"류의
+  // 누수 서술을 붙이지 않는다 (97a3448의 전 구간 양호 가드를 이 예시에도 적용).
+  const stageExample = getTag(worstScore) === "good" ? "" : getStageExample(worstStageId);
 
   useEffect(() => {
     if (echo) trackEchoView("priority", worstStageId, echo.questionId);
@@ -77,9 +80,9 @@ export default function PriorityCard({
         </p>
       </div>
 
-      {getStageExample(worstStageId) && (
+      {stageExample && (
         <p className="text-[12.5px] text-gray-500 leading-relaxed mb-4">
-          {getStageExample(worstStageId)}
+          {stageExample}
         </p>
       )}
 

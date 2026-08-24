@@ -287,7 +287,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **Supabase**: 결과 저장은 fire-and-forget (fetch + keepalive). 오류가 사용자 경험을 막지 않도록
 - **AI 코멘트**: 키 없음·API 오류 시 두 모드 모두 정적 폴백 코멘트 제공(응답에 `fallback`·`reason` 표시). 진단에 없는 퍼센트·배수를 지어내면 `lib/numeric-guard.ts`가 잡아 폴백으로 대체한다. 폴백 여부는 `ai_comment_events` 테이블에 쌓여 어드민 "AI 폴백률" 타일로 보인다
 - **GitHub**: org `vupercentmove`, repo `viewpercent-diagnostic`
-- **예시는 표시용이다**: `question-examples.ts`·`stage-examples.ts`는 스코어링과 무관하다. 문항을 추가·삭제하면 `question-examples.test.ts`의 id 일치 테스트가 깨지므로 예시도 함께 넣는다
+- **예시는 표시용이다**: `question-examples.ts`·`stage-examples.ts`는 스코어링과 무관하다. 문항을 추가·삭제하면 `question-examples.test.ts`의 id 일치 테스트가 깨지므로 예시도 함께 넣는다. `lib/full-deep-content.ts`의 `QUESTION_INSIGHT`(27문항, 같은 카드에서 함께 렌더)는 id 일치 테스트가 없어 CI가 못 잡으니 수동으로 같이 채울 것
 
 ## 커맨드
 
