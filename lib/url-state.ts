@@ -6,14 +6,13 @@
  *
  * 공유 URL 예: ?a=0234100021&phase=result
  *
- * 정밀(full) 모드는 27문항 답변(0/25/50/75/100 + 모름 + 미응답)을 27자리
- * 문자열로, 비전 응답을 1자리로 인코딩한다.
+ * 정밀(full) 모드는 심화 문항 답변(0/25/50/75/100 + 모름 + 미응답)을 문항 수만큼의
+ * 자리로, 비전 응답을 1자리로 인코딩한다.
  * 복원 URL 예: ?fa=0123456...(27자)&v=2&phase=full-result
  */
 
 import type { Answers } from "./scoring";
 import { QUICK_QUESTIONS } from "./questions";
-import { DEEP_QUESTIONS } from "./deep-questions";
 import { UNKNOWN_ANSWER, isUnknown } from "./quiz-fallback";
 import { VISION_QUESTION } from "./full-deep-content";
 
@@ -32,59 +31,155 @@ const DIGIT_TO_SCORE: Record<string, number> = {
   "4": 100,
 };
 
-/** 문항 ID 정렬 순서 (questions.ts 순서와 동일) */
-const QUESTION_ORDER = QUICK_QUESTIONS.map((q) => q.id);
+/**
+ * 인코딩 버전 표기 — 버전은 인코딩 문자열 자체가 들고 다닌다.
+ *
+ *   v1  : 접두어 없음        "0123401234"
+ *   v2+ : "<버전>-" 접두어    "2-012340123456"
+ *
+ * 왜 쿼리 파라미터가 아니라 문자열 안에 넣는가:
+ * 빠른 진단의 정식 공유 링크는 경로다(`/result/<enc>` — 카톡 OG 미리보기 때문에
+ * SSR 라우트를 쓴다). 경로에는 파라미터를 붙일 자리가 없다. 문자열이 스스로 버전을
+ * 들고 다니면 경로든 쿼리든 파서 하나로 처리되고, `decodeAnswers`를 호출하는 네 곳
+ * (SSR 라우트·OG 이미지 라우트·SharedResult·readStateFromUrl)을 하나도 고치지
+ * 않아도 된다. 답변 숫자는 0~4뿐이라 "-"와 충돌하지 않는다.
+ *
+ * v1을 접두어 없이 두는 이유: 이미 밖에 나가 있는 링크가 전부 접두어 없는 형태다.
+ */
+const LEGACY_VERSION = 1;
 
-/** Answers → 10자리 문자열 */
-export function encodeAnswers(answers: Answers): string {
-  return QUESTION_ORDER.map((id) => {
-    const score = answers[id];
-    return score !== undefined ? (SCORE_TO_DIGIT[score] ?? "2") : "2";
-  }).join("");
+function parseVersionedCode(code: string): { version: number; payload: string } {
+  const m = /^(\d+)-(.*)$/.exec(code);
+  return m ? { version: Number(m[1]), payload: m[2] } : { version: LEGACY_VERSION, payload: code };
 }
 
-/** 10자리 문자열 → Answers. 유효하지 않으면 null 반환 */
+function formatVersionedCode(version: number, payload: string): string {
+  return version === LEGACY_VERSION ? payload : `${version}-${payload}`;
+}
+
+/**
+ * 빠른 진단 문항 순서 — 버전별로 동결한다.
+ *
+ * ⚠️ 이미 배포된 버전의 배열은 절대 수정하지 않는다. 자세한 이유는 아래
+ *    FULL_ORDER_V1의 주석 참고 — 같은 함정이 그대로 적용된다.
+ *    `lib/url-version.test.ts`가 현재 버전 배열과 QUICK_QUESTIONS의 일치를 검사한다.
+ */
+export const QUICK_ORDER_V1: readonly string[] = Object.freeze([
+  "q1a", "q1b", "q2a", "q3a", "q3b", "q4a", "q4b", "q5a", "q6a", "q6b",
+]);
+
+/** 버전 번호 → 그 버전의 문항 순서 */
+export const QUICK_ORDER_BY_VERSION: Readonly<Record<number, readonly string[]>> =
+  Object.freeze({ 1: QUICK_ORDER_V1 });
+
+/** 지금 새로 만드는 빠른 진단 링크에 찍히는 버전 */
+export const QUICK_ENCODING_VERSION = 1;
+
+/** Answers → 인코딩 문자열 (현재 버전) */
+export function encodeAnswers(answers: Answers): string {
+  const order = QUICK_ORDER_BY_VERSION[QUICK_ENCODING_VERSION];
+  const digits = order
+    .map((id) => {
+      const score = answers[id];
+      return score !== undefined ? (SCORE_TO_DIGIT[score] ?? "2") : "2";
+    })
+    .join("");
+  return formatVersionedCode(QUICK_ENCODING_VERSION, digits);
+}
+
+/**
+ * 인코딩 문자열 → Answers. 유효하지 않으면 null 반환.
+ *
+ * 버전은 문자열이 들고 있다 — 접두어가 없으면 v1(버전 도입 전 링크).
+ */
 export function decodeAnswers(encoded: string): Answers | null {
-  if (encoded.length !== QUESTION_ORDER.length) return null;
+  const { version, payload } = parseVersionedCode(encoded);
+  const order = QUICK_ORDER_BY_VERSION[version];
+  if (!order) return null;
+  if (payload.length !== order.length) return null;
   const answers: Answers = {};
-  for (let i = 0; i < QUESTION_ORDER.length; i++) {
-    const digit = encoded[i];
+  for (let i = 0; i < order.length; i++) {
+    const digit = payload[i];
     if (!(digit in DIGIT_TO_SCORE)) return null;
-    answers[QUESTION_ORDER[i]] = DIGIT_TO_SCORE[digit];
+    answers[order[i]] = DIGIT_TO_SCORE[digit];
   }
   return answers;
 }
 
-/** 정밀 모드 심화 문항 ID 정렬 순서 (deep-questions.ts 순서와 동일, 27문항) */
-const FULL_QUESTION_ORDER = DEEP_QUESTIONS.map((q) => q.id);
+/**
+ * 정밀 모드 인코딩 버전 — 자리 i가 어느 문항인지는 버전마다 고정이다.
+ *
+ * 왜 DEEP_QUESTIONS에서 파생하지 않고 문자열로 박아두는가:
+ * 이전에는 `DEEP_QUESTIONS.map(q => q.id)`를 그대로 썼다. 그래서 문항을 하나만
+ * 더해도 길이가 27→28이 되고, 이미 나간 27자리 링크가 전부 디코드 실패(null)했다.
+ * null이면 app/page.tsx의 복원 분기가 조용히 실패해 에러 화면도 없이 시작 화면이
+ * 뜬다 — 실고객에게 보낸 결과 링크가 그렇게 죽는다(2026-08-25 확인).
+ *
+ * ⚠️ 이미 배포된 버전의 배열은 절대 수정하지 않는다. 문항을 추가·삭제·재배치하면
+ *    새 버전 배열을 추가하고 FULL_ENCODING_VERSION을 올린다. 기존 배열을 고치면
+ *    이미 나간 링크가 다른 문항으로 복원된다 — 틀린 결과가 조용히 표시되는 쪽이
+ *    시작 화면으로 떨어지는 것보다 나쁘다.
+ *    `lib/url-version.test.ts`가 현재 버전 배열과 DEEP_QUESTIONS의 일치를
+ *    검사하므로, 버전을 안 올리고 문항만 바꾸면 CI에서 먼저 걸린다.
+ */
+export const FULL_ORDER_V1: readonly string[] = Object.freeze([
+  "d1a", "d1b", "d1c", "d1d",
+  "d2a", "d2b", "d2c", "d2d",
+  "d3a", "d3b", "d3c", "d3d", "d3e",
+  "d4a", "d4b", "d4c", "d4d", "d4e",
+  "d5a", "d5b", "d5c", "d5d",
+  "d6a", "d6b", "d6c", "d6d", "d6e",
+]);
+
+/** 버전 번호 → 그 버전의 문항 순서 */
+export const FULL_ORDER_BY_VERSION: Readonly<Record<number, readonly string[]>> =
+  Object.freeze({ 1: FULL_ORDER_V1 });
+
+/** 지금 새로 만드는 링크에 찍히는 버전 */
+export const FULL_ENCODING_VERSION = 1;
 
 /** 0/25/50/75/100은 기존 SCORE_TO_DIGIT/DIGIT_TO_SCORE 재사용, "모름"·"미응답"만 추가 */
 const FULL_UNKNOWN_DIGIT = "5";
 const FULL_MISSING_DIGIT = "6"; // 스테이지 중도 이탈(모름 폴백)로 아예 응답하지 않은 문항
 
-/** Answers(정밀) → 27자리 문자열. 미응답 문항은 "6", 모름 응답은 "5" */
+/** Answers(정밀) → 인코딩 문자열 (현재 버전). 미응답 문항은 "6", 모름 응답은 "5" */
 export function encodeFullAnswers(answers: Answers): string {
-  return FULL_QUESTION_ORDER.map((id) => {
-    const v = answers[id];
-    if (v === undefined) return FULL_MISSING_DIGIT;
-    if (isUnknown(v)) return FULL_UNKNOWN_DIGIT;
-    return SCORE_TO_DIGIT[v] ?? FULL_MISSING_DIGIT;
-  }).join("");
+  const digits = FULL_ORDER_BY_VERSION[FULL_ENCODING_VERSION]
+    .map((id) => {
+      const v = answers[id];
+      if (v === undefined) return FULL_MISSING_DIGIT;
+      if (isUnknown(v)) return FULL_UNKNOWN_DIGIT;
+      return SCORE_TO_DIGIT[v] ?? FULL_MISSING_DIGIT;
+    })
+    .join("");
+  return formatVersionedCode(FULL_ENCODING_VERSION, digits);
 }
 
-/** 27자리 문자열 → Answers(정밀). 유효하지 않으면 null 반환 */
+/**
+ * 인코딩 문자열 → Answers(정밀). 유효하지 않으면 null 반환.
+ *
+ * 버전은 문자열이 들고 있다 — 접두어가 없으면 v1(버전 도입 전 링크).
+ *
+ * 그 버전에 있었지만 지금은 없는 문항의 키도 그대로 담아 돌려준다. 스코어링은
+ * `getDeepQuestionsByStage()`를 돌며 answers를 조회하므로(full-deep-scoring.ts)
+ * 사라진 문항 키는 읽히지 않고, 새로 생긴 문항은 undefined라 평균에서 빠진다 —
+ * 이미 있는 "미응답" 처리와 같은 경로다.
+ */
 export function decodeFullAnswers(encoded: string): Answers | null {
-  if (encoded.length !== FULL_QUESTION_ORDER.length) return null;
+  const { version, payload } = parseVersionedCode(encoded);
+  const order = FULL_ORDER_BY_VERSION[version];
+  if (!order) return null;
+  if (payload.length !== order.length) return null;
   const answers: Answers = {};
-  for (let i = 0; i < FULL_QUESTION_ORDER.length; i++) {
-    const digit = encoded[i];
+  for (let i = 0; i < order.length; i++) {
+    const digit = payload[i];
     if (digit === FULL_MISSING_DIGIT) continue; // 키 자체를 생략 (미응답)
     if (digit === FULL_UNKNOWN_DIGIT) {
-      answers[FULL_QUESTION_ORDER[i]] = UNKNOWN_ANSWER;
+      answers[order[i]] = UNKNOWN_ANSWER;
       continue;
     }
     if (!(digit in DIGIT_TO_SCORE)) return null;
-    answers[FULL_QUESTION_ORDER[i]] = DIGIT_TO_SCORE[digit];
+    answers[order[i]] = DIGIT_TO_SCORE[digit];
   }
   return answers;
 }
@@ -121,6 +216,7 @@ export function readStateFromUrl(): {
   const phase = params.get("phase");
   const fullEncoded = params.get("fa");
   const visionDigit = params.get("v");
+
   return {
     answers: encoded ? decodeAnswers(encoded) : null,
     phase,
