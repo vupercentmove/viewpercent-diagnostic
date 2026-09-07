@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { STAGES } from "@/lib/stage-meta";
 import { getTag, type Answers } from "@/lib/scoring";
-import { calcFullDeepStageScores, getFullWeakestStage, subAreaBreakdown } from "@/lib/full-deep-scoring";
+import { calcFullDeepStageScores, getFullWeakestStage, subAreaBreakdown, collectUnknownAreas } from "@/lib/full-deep-scoring";
 import { getExplainer } from "@/lib/full-deep-content";
 import { getBenchmark } from "@/lib/benchmark";
 import { buildStageEvidence, hasEvidence } from "@/lib/full-deep-evidence";
@@ -11,9 +11,13 @@ import StageScoreList from "@/components/StageScoreList";
 import StrengthBox from "@/components/StrengthBox";
 import { buildKakaoUrl } from "@/lib/constants";
 import { trackFullCtaClick, trackShareUrlCopy } from "@/lib/analytics";
+import { reportCtaClick } from "@/lib/feedback-client";
+import ReactionCard from "@/components/ReactionCard";
+import UnknownPickCard from "@/components/UnknownPickCard";
 
-export default function FullResultLayout({ answers, vision, aiComment, variant, onRestart }: { answers: Answers; vision: string | null; aiComment: string | null; variant?: "A" | "B"; onRestart: () => void }) {
+export default function FullResultLayout({ answers, vision, aiComment, variant, onRestart, resultCode = null }: { answers: Answers; vision: string | null; aiComment: string | null; variant?: "A" | "B"; onRestart: () => void; resultCode?: string | null }) {
   const scores = useMemo(() => calcFullDeepStageScores(answers), [answers]);
+  const unknownAreas = useMemo(() => collectUnknownAreas(answers), [answers]);
   const weakest = useMemo(() => getFullWeakestStage(scores), [scores]);
   // 최약 1개는 강조 카드로, 그 다음 2개는 함께 볼 구간으로 분리한다.
   const others = useMemo(
@@ -135,6 +139,12 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
         </section>
       )}
 
+      {/* 모름을 결측이 아니라 대화로 — 둘 이상일 때만 */}
+      <UnknownPickCard resultCode={resultCode} unknownAreas={unknownAreas} />
+
+      {/* 판결이 아니라 질문으로 — CTA 앞에 딱 하나 */}
+      <ReactionCard resultCode={resultCode} />
+
       {vision && (
         <p className="text-[13px] text-gray-700 leading-relaxed px-1">
           {allStagesGood
@@ -142,7 +152,7 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
             : `말씀하신 그 방향을 위해서라도, 지금 새는 ${weakestName ?? "이 지점"}부터 같이 보면 돼요.`}
         </p>
       )}
-      <a href={buildKakaoUrl(weakest ? `full_${weakest.stageId}` : "full")} target="_blank" rel="noopener" onClick={() => trackFullCtaClick(variant)} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">이 빈틈, 카톡으로 봐드릴게요</a>
+      <a href={buildKakaoUrl(weakest ? `full_${weakest.stageId}` : "full")} target="_blank" rel="noopener" onClick={() => { trackFullCtaClick(variant); if (resultCode) reportCtaClick(resultCode); }} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">이 빈틈, 카톡으로 봐드릴게요</a>
       <button
         onClick={copyLink}
         className="w-full py-3 rounded-xl border border-gray-200 text-[13px] text-gray-600 hover:border-vp-blue hover:text-vp-blue"

@@ -9,10 +9,13 @@ import {
 } from "@/lib/analytics";
 import type { GapDiagnosis } from "@/lib/scoring";
 import { KAKAO_URL } from "@/lib/constants";
+import { reportCtaClick } from "@/lib/feedback-client";
 
 interface StickyCtaBarProps {
   stageId: number;
   gap: GapDiagnosis | null;
+  /** 저장 API가 발급한 결과 행 핸들. 있으면 클릭을 그 행에 표시한다(cta_clicked). */
+  resultCode?: string | null;
 }
 
 /**
@@ -22,7 +25,7 @@ interface StickyCtaBarProps {
  */
 const REVEAL_RATIO = 0.9;
 
-export default function StickyCtaBar({ stageId, gap }: StickyCtaBarProps) {
+export default function StickyCtaBar({ stageId, gap, resultCode = null }: StickyCtaBarProps) {
   const copy = buildStickyCtaCopy(stageId, gap);
   const byGap = !!gap?.hasGap;
   const [revealed, setRevealed] = useState(false);
@@ -67,7 +70,10 @@ export default function StickyCtaBar({ stageId, gap }: StickyCtaBarProps) {
           href={KAKAO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => trackStickyCtaClick(stageId, byGap)}
+          onClick={() => {
+            trackStickyCtaClick(stageId, byGap);
+            if (resultCode) reportCtaClick(resultCode);
+          }}
           className="block w-full text-center bg-[#FEE500] text-[#191919] font-medium text-[14px] py-3 rounded-lg hover:bg-[#F5DC00] transition-colors"
         >
           {copy.button}

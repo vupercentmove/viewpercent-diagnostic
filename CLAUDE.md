@@ -21,7 +21,9 @@ app/
   admin/              # 관리자 통계 대시보드
   api/
     analyze/route.ts        # Claude Haiku AI 코멘트 생성 (mode별 분기)
-    diagnostic-result/route.ts  # 결과 저장 (Supabase)
+    diagnostic-result/route.ts  # 결과 저장 (Supabase) — 결과 행 핸들 code 발급·반환
+    cta-click/route.ts          # 카톡 CTA 클릭 → cta_clicked=true (code로 행 특정)
+    result-feedback/route.ts    # 결과 화면 반응 (의외였던 단계·한 줄 / 모름 중 먼저 볼 것)
     admin/
       stats/route.ts        # 벤치마크 통계 조회
       results/route.ts      # 결과 상세 조회
@@ -44,6 +46,8 @@ components/
   EmpathyQuotes.tsx   # 공감 인용
   BeyondCard.tsx      # 진단 너머의 이야기
   CTACard.tsx         # KakaoTalk CTA
+  ReactionCard.tsx    # "이 중 어디가 제일 의외였어요?" — 결과를 질문으로 끝낸다 (CTA 앞)
+  UnknownPickCard.tsx # 정밀: 모름으로 답한 것 중 "먼저 해보고 싶은 것" (둘 이상일 때만)
 lib/
   questions.ts        # 기본 10문항 정의
   deep-questions.ts   # 심화 27문항 정의 (Stage당 4~5문항, 빠른진단 심화경로와 공유)
@@ -57,6 +61,7 @@ lib/
   supabase.ts         # Supabase 클라이언트 + 타입
   question-examples.ts    # 문항별 예시 (문항 id → "어디서 확인하는가" 한 줄)
   stage-examples.ts   # 단계별 해석 예시 (결과 화면 약점 단계 1개에만 사용)
+  feedback-client.ts  # 결과 화면 → 서버 신호 (CTA 클릭·반응) fire-and-forget
 ```
 
 ## 디자인 토큰
@@ -168,7 +173,20 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **저장 필드**:
   - 기본: `stage_scores`, `overall_score`, `weakest_stage`, `result_type`, `has_gap`, `deep_stage_id`, `deep_answers`, `utm`, `completed`
   - 정밀 전용: `diagnostic_mode` (quick/full), `vision_answer`, `unknown_areas`, `icp_flag`
+- **응답**: `{ ok: true, code }` — `code`는 이 행의 핸들(uuid). 클라이언트가 `resultCode` 상태로 들고 있다가 아래 두 라우트에 넘긴다. 심화(deep) 저장은 별도 행이라 별도 code를 받지만 CTA·반응은 base 행에 붙이므로 무시한다
 - **벤치마크 필터**: base 분포는 `deep_stage_id IS NULL AND diagnostic_mode <> 'full'` 행만 포함
+
+### POST /api/cta-click
+카톡 CTA 클릭을 결과 행에 표시. `{ code }` → RPC `mark_cta_clicked(p_code)` → `cta_clicked=true`.
+- 이 RPC는 2026-06-07부터 DB에 있었지만 앱이 code를 만든 적이 없어 2026-08-25까지 한 번도 호출되지 않았다(어드민 CTA 전환율이 영원히 0%였던 이유)
+- 클라이언트(`lib/feedback-client.ts`)는 keepalive fire-and-forget. 실패해도 UX 영향 없음
+
+### POST /api/result-feedback
+결과 화면 반응 두 가지를 같은 행에 기록. 넘긴 필드만 갱신(RPC `record_result_feedback`의 coalesce).
+- **요청**: `{ code, reactionStage?: 1~6, reactionNote?: ≤200자, unknownPick?: ≤80자 }` — 하나 이상 필수
+- `reactionStage`·`reactionNote`: `ReactionCard` "이 중 어디가 제일 의외였어요?" (단계 탭 즉시 전송, 한 줄은 따로)
+- `unknownPick`: `UnknownPickCard` 정밀 진단 모름 답변 중 먼저 해보고 싶은 것 (subArea 이름)
+- ⚠️ 마이그레이션 `20260825120000_add_result_feedback.sql`이 **앱보다 먼저** 적용돼야 한다. 함수가 없으면 502를 내고 클라이언트가 삼켜 반응이 조용히 유실된다
 
 ### GET /api/admin/stats
 벤치마크 통계 조회: Stage별 평균 점수, 분포, 전환율 등. **인증 필요** — 미인증 시 401 JSON.
@@ -204,6 +222,9 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 | `sticky_cta_view` | **결과 화면 진입** (StickyCtaBar 마운트). 이름과 달리 CTA 노출이 아니다 |
 | `sticky_cta_impression` | 하단 sticky CTA가 실제로 화면에 보인 시점 (한 화면 넘게 스크롤 후) |
 | `sticky_cta_click` | 하단 sticky CTA 클릭 |
+| `reaction_stage` | 결과 화면 "어디가 제일 의외였어요?" 단계 탭 |
+| `reaction_note` | 위 탭 뒤 한 줄까지 남김 |
+| `unknown_pick` | 정밀: 모름 답변 중 먼저 해보고 싶은 것 탭 |
 
 ⚠️ **`sticky_cta_view`의 발사 시점을 옮기지 말 것.** 2026-06부터 "결과 화면 진입수"로
 시계열이 쌓여 있어, 마운트 시점을 바꾸면 과거와 비교가 끊긴다. CTA 실노출을 재려면
@@ -287,7 +308,8 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **Supabase**: 결과 저장은 fire-and-forget (fetch + keepalive). 오류가 사용자 경험을 막지 않도록
 - **AI 코멘트**: 키 없음·API 오류 시 두 모드 모두 정적 폴백 코멘트 제공(응답에 `fallback`·`reason` 표시). 진단에 없는 퍼센트·배수를 지어내면 `lib/numeric-guard.ts`가 잡아 폴백으로 대체한다. 폴백 여부는 `ai_comment_events` 테이블에 쌓여 어드민 "AI 폴백률" 타일로 보인다
 - **GitHub**: org `vupercentmove`, repo `viewpercent-diagnostic`
-- **예시는 표시용이다**: `question-examples.ts`·`stage-examples.ts`는 스코어링과 무관하다. 문항을 추가·삭제하면 `question-examples.test.ts`의 id 일치 테스트가 깨지므로 예시도 함께 넣는다. `lib/full-deep-content.ts`의 `QUESTION_INSIGHT`(27문항, 같은 카드에서 함께 렌더)는 id 일치 테스트가 없어 CI가 못 잡으니 수동으로 같이 채울 것
+- **예시는 표시용이다**: `question-examples.ts`·`stage-examples.ts`는 스코어링과 무관하다. 문항을 추가·삭제하면 `question-examples.test.ts`의 id 일치 테스트가 깨지므로 예시도 함께 넣는다
+- **결과 행 핸들 `code`**: 저장 API가 발급해 클라이언트 `resultCode`로 흐른다. 공유 링크(`/result/<enc>`)·새로고침 복원에는 없다 — 그 화면에선 `ReactionCard`·`UnknownPickCard`가 그려지지 않고 CTA 클릭도 기록되지 않는다(의도된 동작: 공유 링크 수신자는 진단한 당사자가 아닐 수 있다). `lib/full-deep-content.ts`의 `QUESTION_INSIGHT`(27문항, 같은 카드에서 함께 렌더)는 id 일치 테스트가 없어 CI가 못 잡으니 수동으로 같이 채울 것
 
 ## 커맨드
 

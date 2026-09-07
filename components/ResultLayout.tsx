@@ -16,6 +16,7 @@ import DeepResultCard from "@/components/DeepResultCard";
 import AiCommentCard from "@/components/AiCommentCard";
 import ShareCardButton from "@/components/ShareCardButton";
 import StickyCtaBar from "@/components/StickyCtaBar";
+import ReactionCard from "@/components/ReactionCard";
 import {
   type Answers,
   calcAllStageScores,
@@ -38,6 +39,11 @@ interface ResultLayoutProps {
   onDeepStart?: () => void;
   /** 처음부터 다시 진단 (SPA 내부). shared 변형에서는 미사용 */
   onRestart?: () => void;
+  /**
+   * 저장 API가 발급한 결과 행 핸들. CTA 클릭·결과 반응을 이 행에 붙인다.
+   * shared 변형과 새로고침 복원에는 없다 — 그때는 반응 카드가 그려지지 않는다.
+   */
+  resultCode?: string | null;
 }
 
 export default function ResultLayout({
@@ -47,6 +53,7 @@ export default function ResultLayout({
   deepAnswers = {},
   onDeepStart,
   onRestart,
+  resultCode = null,
 }: ResultLayoutProps) {
   const stageScores = useMemo(() => calcAllStageScores(answers), [answers]);
   const overallScore = useMemo(() => calcOverallScore(answers), [answers]);
@@ -164,8 +171,11 @@ export default function ResultLayout({
       {/* 10. 진단 너머의 이야기 */}
       <BeyondCard />
 
+      {/* 10.5 판결이 아니라 질문으로 — CTA 앞에 딱 하나. code 없으면(공유·복원) 안 그려진다 */}
+      <ReactionCard resultCode={resultCode} />
+
       {/* 11. CTA — 결과 링크 동봉 */}
-      <CTACard answers={answers} />
+      <CTACard answers={answers} resultCode={resultCode} />
 
       {/* 12. 결과 공유 카드 */}
       <ShareCardButton
@@ -196,7 +206,7 @@ export default function ResultLayout({
       )}
 
       {/* 하단 sticky 카톡 CTA */}
-      <StickyCtaBar stageId={worstStage.stageId} gap={gap} />
+      <StickyCtaBar stageId={worstStage.stageId} gap={gap} resultCode={resultCode} />
     </div>
   );
 }

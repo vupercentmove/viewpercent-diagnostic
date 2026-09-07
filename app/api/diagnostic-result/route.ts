@@ -3,9 +3,15 @@
  *
  * 진단 완료 시 클라이언트가 익명 결과를 보낸다 → Supabase에 저장.
  * 개인식별정보(이름/연락처)는 받지 않는다. 집계·벤치마크 용도.
+ *
+ * 응답으로 결과 행 핸들(code)을 돌려준다. 클라이언트는 이걸 들고 있다가
+ * 카톡 CTA 클릭(/api/cta-click)과 결과 반응(/api/result-feedback)을 이 행에 붙인다.
+ * code 없이는 어느 행인지 알 수 없다 — 2026-06-07부터 있던 mark_cta_clicked가
+ * 한 번도 불리지 못한 이유가 정확히 이것이었다.
  */
 
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { insertDiagnosticResult, type DiagnosticResultRow } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -45,7 +51,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
 
+  // 행 핸들 — 클라이언트가 이걸로 CTA 클릭·결과 반응을 이 행에 붙인다.
+  const code = randomUUID();
+
   const row: DiagnosticResultRow = {
+    code,
     stage_scores: body.stageScores,
     overall_score: Math.round(body.overallScore),
     weakest_stage: body.weakestStage,
@@ -63,7 +73,7 @@ export async function POST(request: Request) {
 
   try {
     await insertDiagnosticResult(row);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, code });
   } catch (err) {
     // 저장 실패가 사용자 경험을 막지 않도록 200이 아닌 502로만 알림 (클라는 fire-and-forget)
     console.error("[diagnostic-result] insert failed:", err);
