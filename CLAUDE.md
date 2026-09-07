@@ -186,7 +186,7 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - **요청**: `{ code, reactionStage?: 1~6, reactionNote?: ≤200자, unknownPick?: ≤80자 }` — 하나 이상 필수
 - `reactionStage`·`reactionNote`: `ReactionCard` "이 중 어디가 제일 의외였어요?" (단계 탭 즉시 전송, 한 줄은 따로)
 - `unknownPick`: `UnknownPickCard` 정밀 진단 모름 답변 중 먼저 해보고 싶은 것 (subArea 이름)
-- ⚠️ 마이그레이션 `20260825120000_add_result_feedback.sql`이 **앱보다 먼저** 적용돼야 한다. 함수가 없으면 502를 내고 클라이언트가 삼켜 반응이 조용히 유실된다
+- ⚠️ 마이그레이션 `20260907025746_add_result_feedback.sql`이 **앱보다 먼저** 적용돼야 한다. 함수가 없으면 502를 내고 클라이언트가 삼켜 반응이 조용히 유실된다
 
 ### GET /api/admin/stats
 벤치마크 통계 조회: Stage별 평균 점수, 분포, 전환율 등. **인증 필요** — 미인증 시 401 JSON.
