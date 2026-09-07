@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { trackCTAClick, trackShareUrlCopy } from "@/lib/analytics";
 import { KAKAO_URL, buildKakaoUrl } from "@/lib/constants";
 import { buildShareUrl } from "@/lib/url-state";
+import { reportCtaClick } from "@/lib/feedback-client";
 import {
   calcAllStageScores,
   calcOverallScore,
@@ -13,9 +14,11 @@ import {
 
 interface CTACardProps {
   answers: Answers;
+  /** 저장 API가 발급한 결과 행 핸들. 있으면 클릭을 그 행에 표시한다(cta_clicked). */
+  resultCode?: string | null;
 }
 
-export default function CTACard({ answers }: CTACardProps) {
+export default function CTACard({ answers, resultCode = null }: CTACardProps) {
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   // SSR에서는 buildShareUrl이 상대경로를 반환해 hydration mismatch가 나므로,
@@ -82,6 +85,7 @@ export default function CTACard({ answers }: CTACardProps) {
             worstStageId: worst.stageId,
             worstScore: worst.score,
           });
+          if (resultCode) reportCtaClick(resultCode);
         }}
         className="block w-full text-center bg-[#FEE500] text-[#191919] font-medium text-sm py-3.5 rounded-lg hover:bg-[#F5DC00] transition-colors"
       >

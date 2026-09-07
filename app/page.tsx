@@ -57,8 +57,12 @@ function readUtm(): Record<string, string> | null {
   return Object.keys(utm).length > 0 ? utm : null;
 }
 
-/** 진단 결과를 익명으로 저장 (fire-and-forget — 실패해도 UX 안 막음) */
-function saveResult(payload: {
+/**
+ * 진단 결과를 익명으로 저장. 실패해도 UX를 막지 않는다.
+ * 저장 API가 발급한 결과 행 핸들(code)을 돌려주고, 못 받으면 null — 그러면
+ * CTA 클릭·결과 반응 추적만 빠지고 화면은 그대로 간다.
+ */
+async function saveResult(payload: {
   stageScores: { stageId: number; score: number }[];
   overallScore: number;
   weakestStage: number;
@@ -71,16 +75,19 @@ function saveResult(payload: {
   vision_answer?: string | null;
   unknown_areas?: { stageId: number; subAreas: string[] }[] | null;
   icp_flag?: boolean | null;
-}) {
+}): Promise<string | null> {
   try {
-    fetch("/api/diagnostic-result", {
+    const res = await fetch("/api/diagnostic-result", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, utm: readUtm() }),
       keepalive: true,
-    }).catch(() => {});
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { code?: unknown };
+    return typeof data.code === "string" ? data.code : null;
   } catch {
-    /* noop */
+    return null;
   }
 }
 
@@ -107,6 +114,11 @@ export default function HomePage() {
   const [fullAiComment, setFullAiComment] = useState<string | null>(null);
   const [fullWeakestName, setFullWeakestName] = useState<string>("");
   const [fullVariant, setFullVariant] = useState<"A" | "B">("A");
+
+  // 저장 API가 발급한 결과 행 핸들. CTA 클릭·결과 반응(ReactionCard·UnknownPickCard)을
+  // 이 행에 붙인다. 심화(deep) 저장은 별도 행이라 별도 code를 받지만, CTA·반응은
+  // base 행에 붙이므로 그때는 덮어쓰지 않는다.
+  const [resultCode, setResultCode] = useState<string | null>(null);
 
   // URL에서 결과 복원 (구버전 ?a= 공유 링크 + 새로고침/뒤로가기).
   // 복원 시에는 analyzing 인터스티셜을 건너뛰고 결과를 바로 보여준다 (마찰 제거).
@@ -198,7 +210,7 @@ export default function HomePage() {
     const label = matchLabel(gapResult, worst);
     trackLabelView(label.id, label.stageId, gapResult?.hasGap ?? false);
 
-    // 익명 결과 저장 (업계 벤치마크 집계용)
+    // 익명 결과 저장 (업계 벤치마크 집계용) — 돌아온 code로 CTA·반응을 이 행에 붙인다
     saveResult({
       stageScores: scores,
       overallScore: overall,
@@ -207,6 +219,8 @@ export default function HomePage() {
         ? `gap_${gapResult.perceivedWorst}_${gapResult.actualWorst}`
         : "none",
       hasGap: gapResult?.hasGap ?? false,
+    }).then((code) => {
+      if (code) setResultCode(code);
     });
   };
 
@@ -231,7 +245,8 @@ export default function HomePage() {
     // 않았으므로 렌더 스코프의 메모값을 그대로 재사용한다.
     // ⚠️ 이 레코드는 deep_stage_id가 non-null인 것으로 구분된다. 벤치마크 집계 시
     //    base 분포는 deep_stage_id IS NULL 행만 세어 deep 완료자 이중집계를 피한다.
-    saveResult({
+    // 이 행의 code는 쓰지 않는다 — CTA·반응은 base 행(resultCode)에 붙는다.
+    void saveResult({
       stageScores,
       overallScore,
       weakestStage: worstStage.stageId,
@@ -293,6 +308,8 @@ export default function HomePage() {
       vision_answer: vision,
       unknown_areas: collectUnknownAreas(fullAns),
       icp_flag: computeIcpFlag(icpSignals),
+    }).then((code) => {
+      if (code) setResultCode(code);
     });
 
     // 전 Stage 모름 — 약점 Stage 자체가 없으므로 /api/analyze 호출 없이 고정 메시지
@@ -338,6 +355,7 @@ export default function HomePage() {
     setFullAiComment(null);
     setFullWeakestName("");
     setFullVariant("A");
+    setResultCode(null);
     setPhase("intro");
     pushInitialState();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -401,6 +419,7 @@ export default function HomePage() {
           variant="result"
           onDeepStart={handleDeepStart}
           onRestart={handleRestart}
+          resultCode={resultCode}
         />
       )}
 
@@ -411,6 +430,7 @@ export default function HomePage() {
           deepStageId={deepStageId}
           deepAnswers={deepAnswers}
           onRestart={handleRestart}
+          resultCode={resultCode}
         />
       )}
 
@@ -421,6 +441,7 @@ export default function HomePage() {
           aiComment={fullAiComment}
           variant={fullVariant}
           onRestart={handleRestart}
+          resultCode={resultCode}
         />
       )}
     </>

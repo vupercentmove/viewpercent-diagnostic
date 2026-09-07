@@ -287,3 +287,18 @@ export function trackAiCommentFallback(mode: AiCommentMode, reason: string) {
 export function trackAiCommentError(mode: AiCommentMode, reason: string) {
   track("ai_comment_error", { mode, reason });
 }
+
+/** 결과 화면 "이 중 어디가 제일 의외였어요?" 단계 선택 */
+export function trackReactionStage(stageId: number) {
+  track("reaction_stage", { stageId });
+}
+
+/** 위 선택 뒤 자유 한 줄까지 남김 */
+export function trackReactionNote(stageId: number) {
+  track("reaction_note", { stageId });
+}
+
+/** 정밀: 모름으로 답한 것 중 "먼저 해보고 싶은 것" 선택 */
+export function trackUnknownPick(stageId: number) {
+  track("unknown_pick", { stageId });
+}
