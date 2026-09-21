@@ -8,9 +8,12 @@ import { UNKNOWN_ANSWER, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fa
 import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals, getQuestionInsight } from "@/lib/full-deep-content";
 import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement, trackQuizAnswer, trackQuestionInsightToggle } from "@/lib/analytics";
 import QuestionExample from "@/components/QuestionExample";
+import WorkbookChapterIntro from "@/components/WorkbookChapterIntro";
+import WorkbookCheckpoint from "@/components/WorkbookCheckpoint";
+import { WORKBOOK_TOTAL_QUESTIONS } from "@/lib/workbook-content";
 
 const STAGE_IDS = STAGES.map((s) => s.id);
-type Mode = "quiz" | "explainer" | "icp" | "vision" | "coach";
+type Mode = "chapter-intro" | "quiz" | "explainer" | "icp" | "vision" | "coach" | "checkpoint";
 
 export default function FullDeepQuizStage({ onComplete, variant }: { onComplete: (r: { answers: Answers; vision: string | null; icpSignals: IcpSignals }) => void; variant: "A" | "B" }) {
   const [answers, setAnswers] = useState<Answers>({});
@@ -19,7 +22,7 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
   const [qCursor, setQCursor] = useState(0);
   const [streak, setStreak] = useState(0);
   const [icpCursor, setIcpCursor] = useState(0);
-  const [mode, setMode] = useState<Mode>("quiz");
+  const [mode, setMode] = useState<Mode>("chapter-intro");
   const [showEncouragement, setShowEncouragement] = useState(false);
   const [coachLine, setCoachLine] = useState<string | null>(null);
   const [reviewMode, setReviewMode] = useState(false);
@@ -44,14 +47,13 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
       if (!encouragedRef.current && next >= Math.floor(total / 2)) {
         encouragedRef.current = true; setShowEncouragement(true); trackEncouragement("full");
       }
-      setStageIdx(next); setQCursor(0); setStreak(0); setMode("quiz"); setReviewMode(false); setInsightOpen(false);
+      setStageIdx(next); setQCursor(0); setStreak(0); setMode("chapter-intro"); setReviewMode(false); setInsightOpen(false);
     } else {
       setMode("icp"); setReviewMode(false); setInsightOpen(false);
     }
   };
 
-  const goNextStage = () => {
-    trackFullDeepStageComplete(stageId);
+  const continueAfterStage = () => {
     const line = STAGE_COACH_LINE[stageId];
     if (variant === "A" && line) {
       // pivotal 단계(2, 6) 완료 직후 — 코치 한 줄을 먼저 보여주고, "다음"에서 실제 전환.
@@ -62,6 +64,16 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
       // variant B(또는 코치 라인 없는 단계) — 기존 동작과 완전히 동일하게 즉시 전환.
       commitStageTransition();
     }
+  };
+
+  const goNextStage = () => {
+    trackFullDeepStageComplete(stageId);
+    if (stageId === 3 || stageId === 5) {
+      coachNextRef.current = continueAfterStage;
+      setMode("checkpoint");
+      return;
+    }
+    continueAfterStage();
   };
 
   const advance = () => {
@@ -87,6 +99,37 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
     setReviewMode(true);
     setInsightOpen(false);
   };
+
+  // ── 챕터 개념 카드: 판단 기준을 먼저 읽고 바로 실습한다 ──
+  if (mode === "chapter-intro") {
+    return (
+      <Card>
+        <Header stage={stage} step={step} total={total} answeredCount={Object.keys(answers).length} />
+        <div className="mt-5">
+          <WorkbookChapterIntro stageId={stageId} onStart={() => setMode("quiz")} />
+        </div>
+      </Card>
+    );
+  }
+
+  // ── 챕터 3·5 체크포인트: 준비된 사용자는 결과 전에도 상담 가능 ──
+  if (mode === "checkpoint" && (stageId === 3 || stageId === 5)) {
+    return (
+      <Card>
+        <Header stage={stage} step={step} total={total} answeredCount={Object.keys(answers).length} />
+        <div className="mt-5">
+          <WorkbookCheckpoint
+            stageId={stageId}
+            onContinue={() => {
+              const next = coachNextRef.current;
+              coachNextRef.current = null;
+              next?.();
+            }}
+          />
+        </div>
+      </Card>
+    );
+  }
 
   // ── ICP 2문항 ──
   if (mode === "icp") {
@@ -170,7 +213,7 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
     const ex = getExplainer(stageId);
     return (
       <Card>
-        <Header stage={stage} step={step} total={total} />
+        <Header stage={stage} step={step} total={total} answeredCount={Object.keys(answers).length} />
         <div className="mt-4 p-4 rounded-lg bg-vp-blue/5">
           <p className="text-[10px] font-medium text-vp-blue mb-2">먼저 짚고 갈게요</p>
           <p className="text-[14px] leading-relaxed mb-2">{ex.why}</p>
@@ -185,7 +228,7 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
   const insight = getQuestionInsight(q.id);
   return (
     <Card>
-      <Header stage={stage} step={step} total={total} />
+      <Header stage={stage} step={step} total={total} answeredCount={Object.keys(answers).length} />
       <div className="h-1 bg-gray-100 rounded-full overflow-hidden my-4" role="progressbar" aria-valuenow={step} aria-valuemin={0} aria-valuemax={total} aria-valuetext={`${total}단계 중 ${step}단계`}>
         <div className="h-full bg-vp-blue" style={{ width: `${(step / total) * 100}%` }} />
       </div>
@@ -285,12 +328,19 @@ function describeAnswer(q: DeepQuestion, value: number | undefined): string {
 function Card({ children }: { children: React.ReactNode }) {
   return <div className="bg-white border border-gray-100 rounded-[14px] p-6 animate-fade-in-up">{children}</div>;
 }
-function Header({ stage, step, total }: { stage: { label: string; name: string }; step: number; total: number }) {
+function Header({ stage, step, total, answeredCount }: { stage: { label: string; name: string }; step: number; total: number; answeredCount: number }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-vp-blue/10 text-vp-blue">정밀 진단</span>
-      <span className="text-[11px] text-gray-400">{stage.label} — {stage.name}</span>
-      <span className="ml-auto text-[11px] text-gray-400">STAGE {step}/{total}</span>
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-vp-blue/10 text-vp-blue">성장 워크북</span>
+        <span className="text-[11px] text-gray-400">{stage.label} — {stage.name}</span>
+        <span className="ml-auto text-[11px] text-gray-400">작성 {answeredCount}/{WORKBOOK_TOTAL_QUESTIONS}</span>
+      </div>
+      <ol className="mt-3 grid grid-cols-6 gap-1" aria-label={`워크북 ${total}챕터 중 ${step}챕터`}>
+        {STAGES.map((item, index) => (
+          <li key={item.id} className={`h-1.5 rounded-full ${index < step ? "bg-vp-blue" : "bg-gray-100"}`} aria-current={item.id === step ? "step" : undefined} />
+        ))}
+      </ol>
     </div>
   );
 }

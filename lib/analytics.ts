@@ -69,6 +69,11 @@ export function trackCTAClick(data?: {
   });
 }
 
+/** 워크북 진행 중 체크포인트 문의 — 최종 결과 CTA와 분리해 전환 시점을 본다. */
+export function trackWorkbookCheckpointCta(stageId: 3 | 5) {
+  track("workbook_checkpoint_cta", { stageId });
+}
+
 /** 다시 진단하기 클릭 */
 export function trackRestart() {
   track("diagnostic_restart");

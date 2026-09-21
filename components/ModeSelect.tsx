@@ -11,31 +11,30 @@ export default function ModeSelect({
     <div className="flex flex-col gap-3 mt-6">
       <div>
         <button
-          onClick={onQuick}
+          onClick={onFull}
           className="w-full py-3.5 rounded-xl bg-vp-blue text-white hover:bg-vp-blue-hover"
         >
           <span className="block text-[11px] text-white/80 mb-0.5">
-            처음이면 이것부터
+            6챕터를 따라 판단까지 정리
           </span>
           <span className="font-medium">
-            빠른 진단 시작{" "}
-            <span className="opacity-80 text-sm">· 2분 · 10문항</span>
+            성장 워크북 시작하기{" "}
+            <span className="opacity-80 text-sm">· 약 10분</span>
           </span>
         </button>
         <p className="text-[11.5px] text-white/70 text-center mt-2">
-          인증 없이 바로 시작 · 결과는 즉시 확인
+          개념을 읽고 바로 답하기 · 결과는 실행 브리프로 정리
         </p>
       </div>
       <button
-        onClick={onFull}
+        onClick={onQuick}
         className="w-full py-4 rounded-xl border border-white/40 text-white font-medium hover:border-vp-blue-light hover:text-vp-blue-light"
       >
-        정밀 진단 시작{" "}
-        <span className="opacity-70 text-sm">· 약 10분 · 6단계 전체</span>
+        먼저 2분 빠른 점검하기{" "}
+        <span className="opacity-70 text-sm">· 10문항</span>
       </button>
       <p className="text-[12px] text-white/60 text-center leading-relaxed">
-        정밀 진단은 6단계를 하나씩 깊게 봐요. 아직 확인하지 못한 영역까지
-        실행 순서에 함께 담아요.
+        아직 10분이 어렵다면 빠른 점검으로 먼저 확인할 구간을 찾을 수 있어요.
       </p>
     </div>
   );

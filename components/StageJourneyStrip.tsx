@@ -1,34 +1,29 @@
-/** 인트로 화면용 6단계 여정 스트립 — 진단 구조를 눈으로 먼저 보여준다 */
+import { WORKBOOK_JOURNEY } from "@/lib/workbook-content";
 
-const JOURNEY = [
-  { id: 1, full: "욕구·검색·방문", short: "방문" },
-  { id: 2, full: "체류", short: "체류" },
-  { id: 3, full: "쇼핑의 시작", short: "쇼핑 시작" },
-  { id: 4, full: "구매결정", short: "구매 결정" },
-  { id: 5, full: "구매완료·기다림", short: "기다림" },
-  { id: 6, full: "배송·수령완료", short: "수령" },
-];
-
+/** 인트로에서 전체 구조를 먼저 보여주는 6챕터 지도 */
 export default function StageJourneyStrip() {
   return (
-    <div className="relative mb-5" aria-label="쇼핑 플로우 6단계">
-      <div className="absolute left-[7%] right-[7%] top-[11px] h-px bg-white/15" />
-      <ol className="grid grid-cols-6">
-        {JOURNEY.map((s) => (
-          <li
-            key={s.id}
-            title={s.full}
-            className="relative flex flex-col items-center gap-1.5"
-          >
-            <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border border-white/25 bg-vp-navy text-[11px] text-vp-blue-light">
-              {s.id}
+    <section className="mb-6 rounded-xl border border-white/10 bg-white/[0.04] p-4" aria-label="성장 워크북 6챕터">
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-vp-blue-light">Workbook map</p>
+          <p className="mt-1 text-[13px] font-medium text-white">고객이 찾아와 다시 찾기까지</p>
+        </div>
+        <span className="text-[10.5px] text-white/45">6챕터 · 약 10분</span>
+      </div>
+      <ol className="space-y-2">
+        {WORKBOOK_JOURNEY.map((chapter) => (
+          <li key={chapter.stageId} className="flex items-start gap-3 rounded-lg bg-white/[0.04] px-3 py-2.5">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/20 text-[10.5px] text-vp-blue-light">
+              {chapter.stageId}
             </span>
-            <span className="break-keep text-center text-[10.5px] leading-tight text-white/60">
-              {s.short}
-            </span>
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-medium text-white">{chapter.title}</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-white/50">{chapter.output}</p>
+            </div>
           </li>
         ))}
       </ol>
-    </div>
+    </section>
   );
 }

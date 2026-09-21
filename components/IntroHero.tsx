@@ -32,6 +32,19 @@ export default function IntroHero({ onStart, onStartFull }: IntroHeroProps) {
 
       <StageJourneyStrip />
 
+      <div className="mb-5 grid grid-cols-3 gap-2" aria-label="워크북 사용법">
+        {[
+          ["01", "개념을 읽고"],
+          ["02", "바로 답하고"],
+          ["03", "실행을 정해요"],
+        ].map(([number, label]) => (
+          <div key={number} className="rounded-lg border border-white/10 px-2 py-3 text-center">
+            <span className="block text-[10px] text-vp-blue-light">{number}</span>
+            <span className="mt-1 block text-[11px] leading-tight text-white/65">{label}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="mb-6 rounded-lg bg-white/[0.05] px-4 py-3.5">
         <p className="text-[12px] text-vp-blue-light font-medium mb-1.5">
           답변을 마치면, 이렇게 정리돼요
@@ -46,21 +59,21 @@ export default function IntroHero({ onStart, onStartFull }: IntroHeroProps) {
       <div className="flex gap-4 flex-wrap mb-7">
         <div className="text-xs text-white/55">
           <strong className="block text-white font-medium text-lg mb-0.5">
-            10
+            6
           </strong>
-          문항
+          챕터
         </div>
         <div className="text-xs text-white/55">
           <strong className="block text-white font-medium text-lg mb-0.5">
-            약 2분
+            약 10분
           </strong>
           소요
         </div>
         <div className="text-xs text-white/55">
           <strong className="block text-white font-medium text-lg mb-0.5">
-            6
+            27
           </strong>
-          단계 진단
+          핵심 질문
         </div>
       </div>
 
