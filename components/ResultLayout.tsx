@@ -9,7 +9,8 @@ import ActionCards from "@/components/ActionCards";
 import PriorityCard from "@/components/PriorityCard";
 import GapDiagnosisCard from "@/components/GapDiagnosisCard";
 import EmpathyQuotes from "@/components/EmpathyQuotes";
-import BeyondCard from "@/components/BeyondCard";
+import DecisionGuideCard from "@/components/DecisionGuideCard";
+import { buildDecisionGuide } from "@/lib/decision-guide";
 import CTACard from "@/components/CTACard";
 import CaseStudyCard from "@/components/CaseStudyCard";
 import DeepResultCard from "@/components/DeepResultCard";
@@ -72,6 +73,8 @@ export default function ResultLayout({
     () => isGapMatch(gap, matchedCase),
     [gap, matchedCase]
   );
+
+  const decisionGuide = useMemo(() => buildDecisionGuide("quick", answers, variant === "deep-result" ? deepAnswers : {}), [answers, deepAnswers, variant]);
 
   const showDeepCta = variant === "result" && !!onDeepStart;
   const isShared = variant === "shared";
@@ -168,14 +171,14 @@ export default function ResultLayout({
       {/* 9. 공감 인용 */}
       <EmpathyQuotes worstStageId={worstStage.stageId} />
 
-      {/* 10. 진단 너머의 이야기 */}
-      <BeyondCard />
+      {/* 10. 응답 근거 → 패턴 → AI/대표의 역할 → 파트너 역할 */}
+      <DecisionGuideCard guide={decisionGuide} />
 
       {/* 10.5 판결이 아니라 질문으로 — CTA 앞에 딱 하나. code 없으면(공유·복원) 안 그려진다 */}
       <ReactionCard resultCode={resultCode} />
 
       {/* 11. CTA — 결과 링크 동봉 */}
-      <CTACard answers={answers} resultCode={resultCode} />
+      <CTACard answers={answers} resultCode={resultCode} bridge={decisionGuide.ctaBridge} />
 
       {/* 12. 결과 공유 카드 */}
       <ShareCardButton

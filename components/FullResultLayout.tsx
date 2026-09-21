@@ -1,8 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
 import { STAGES } from "@/lib/stage-meta";
-import { getTag, type Answers } from "@/lib/scoring";
+import { type Answers } from "@/lib/scoring";
 import { calcFullDeepStageScores, getFullWeakestStage, subAreaBreakdown, collectUnknownAreas } from "@/lib/full-deep-scoring";
+import { classifyFullResult } from "@/lib/full-result-policy";
 import { getExplainer } from "@/lib/full-deep-content";
 import { getBenchmark } from "@/lib/benchmark";
 import { buildStageEvidence, hasEvidence } from "@/lib/full-deep-evidence";
@@ -13,12 +14,17 @@ import { buildKakaoUrl } from "@/lib/constants";
 import { trackFullCtaClick, trackShareUrlCopy } from "@/lib/analytics";
 import { reportCtaClick } from "@/lib/feedback-client";
 import ReactionCard from "@/components/ReactionCard";
+import DecisionGuideCard from "@/components/DecisionGuideCard";
+import { buildDecisionGuide } from "@/lib/decision-guide";
 import UnknownPickCard from "@/components/UnknownPickCard";
 
 export default function FullResultLayout({ answers, vision, aiComment, variant, onRestart, resultCode = null }: { answers: Answers; vision: string | null; aiComment: string | null; variant?: "A" | "B"; onRestart: () => void; resultCode?: string | null }) {
+  const decisionGuide = useMemo(() => buildDecisionGuide("full", answers), [answers]);
   const scores = useMemo(() => calcFullDeepStageScores(answers), [answers]);
   const unknownAreas = useMemo(() => collectUnknownAreas(answers), [answers]);
   const weakest = useMemo(() => getFullWeakestStage(scores), [scores]);
+  const resultState = useMemo(() => classifyFullResult(scores), [scores]);
+  const hasPriorityStage = resultState === "priority";
   // 최약 1개는 강조 카드로, 그 다음 2개는 함께 볼 구간으로 분리한다.
   const others = useMemo(
     () => scores.filter((s) => s.measured && s.stageId !== weakest?.stageId).sort((a, b) => a.score - b.score).slice(0, 2),
@@ -46,10 +52,6 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
 
   const weakestName = weakest ? STAGES[weakest.stageId - 1].name : null;
 
-  // 최약 구간마저 양호(≥70)면 "새고 있다"는 절대 표현이 사실과 어긋난다.
-  // 아래 카드는 상대 순위일 뿐이므로, 그때는 '먼저 볼 곳'이라는 상대 표현으로 바꾼다.
-  // (카피 정본: "새다"는 돈이 빠져나간 결과를 가리키는 말이다)
-  const allStagesGood = weakest ? getTag(weakest.score) === "good" : false;
 
   const copyLink = async () => {
     try {
@@ -70,16 +72,20 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
           diagnostic result · 정밀 진단
         </p>
         <h2 className="text-[20px] font-medium leading-[1.4] mb-2">
-          {!weakestName
+          {resultState === "unmeasured"
             ? "6단계를 전부 봤어요. 먼저 확인이 필요한 영역부터 같이 보면 돼요."
-            : allStagesGood
-              ? "6단계를 전부 봤어요. 크게 새는 구간 없이 돌아가고 있어요."
-              : `6단계를 전부 봤어요. 지금은 '${weakestName}'에서 새고 있어요.`}
+            : resultState === "maintain"
+              ? "6단계를 전부 봤어요. 확인된 답변은 양호 범위예요."
+              : resultState === "incomplete"
+                ? "확인된 답변은 양호 범위예요. 아직 확인 전인 영역이 남아 있어요."
+              : `6단계를 전부 봤어요. 답변 기준으로 '${weakestName}'부터 확인해봐요.`}
         </h2>
         <p className="text-[13px] text-white/70 leading-relaxed">
-          {allStagesGood
-            ? `그중 먼저 볼 곳은 '${weakestName}'이에요. 세부 영역까지 내려가면 더 다듬을 곳이 보입니다.`
-            : "아래 카드가 가장 새는 세 구간이에요. 세부 영역까지 내려가면 먼저 손볼 곳이 보입니다."}
+          {resultState === "maintain"
+            ? "점수를 더 올리기보다 유지할 기준과 다음 확인 날짜를 정할 차례예요."
+            : resultState === "incomplete"
+              ? "확인 전 영역을 실제 관리자 화면과 기록에서 먼저 열어봐요."
+              : "아래는 답변으로 정리한 확인 순서예요. 실제 고객 행동과 비교하며 먼저 볼 곳을 정해요."}
         </p>
         {benchmark && (
           <div className="mt-5 pt-4 border-t border-white/10">
@@ -117,7 +123,7 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
         stageScores={scores.map(({ stageId, score }) => ({ stageId, score }))}
         unmeasuredStageIds={unmeasured.map((s) => s.stageId)}
       />
-      {aiComment && (
+      {hasPriorityStage && aiComment && (
         <section className="p-4 rounded-[14px] bg-white border border-vp-blue/20">
           <p className="text-[10px] font-medium text-vp-blue mb-2">진단 코멘트</p>
           <p className="text-[14px] leading-relaxed whitespace-pre-line">{aiComment}</p>
@@ -128,9 +134,9 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
       {weakest && <StrengthBox stageScores={strengthCandidates} worstStageId={weakest.stageId} />}
 
       {/* 가장 먼저 볼 구간 — 판정 근거를 함께 되짚는다 */}
-      {weakest && <WeakestStageCard stage={weakest} answers={answers} />}
+      {hasPriorityStage && weakest && <WeakestStageCard stage={weakest} answers={answers} />}
 
-      {others.length > 0 && (
+      {hasPriorityStage && others.length > 0 && (
         <section className="flex flex-col gap-3">
           <p className="text-[11px] tracking-wide text-gray-400 uppercase font-medium px-1">이어서 볼 구간</p>
           {others.map((s) => (
@@ -138,6 +144,8 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
           ))}
         </section>
       )}
+
+      <DecisionGuideCard guide={decisionGuide} />
 
       {/* 모름을 결측이 아니라 대화로 — 둘 이상일 때만 */}
       <UnknownPickCard resultCode={resultCode} unknownAreas={unknownAreas} />
@@ -147,12 +155,15 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
 
       {vision && (
         <p className="text-[13px] text-gray-700 leading-relaxed px-1">
-          {allStagesGood
-            ? `말씀하신 그 방향을 위해서라도, 먼저 볼 ${weakestName ?? "이 지점"}부터 같이 보면 돼요.`
-            : `말씀하신 그 방향을 위해서라도, 지금 새는 ${weakestName ?? "이 지점"}부터 같이 보면 돼요.`}
+          {hasPriorityStage
+            ? `말씀하신 그 방향을 위해, 먼저 확인할 ${weakestName ?? "이 지점"}부터 같이 보면 돼요.`
+            : resultState === "incomplete"
+              ? "말씀하신 그 방향을 위해, 아직 확인 전인 근거부터 같이 열어보면 돼요."
+              : "말씀하신 그 방향을 위해, 지금 확인된 기준을 유지하며 다음 고객 행동을 같이 보면 돼요."}
         </p>
       )}
-      <a href={buildKakaoUrl(weakest ? `full_${weakest.stageId}` : "full")} target="_blank" rel="noopener" onClick={() => { trackFullCtaClick(variant); if (resultCode) reportCtaClick(resultCode); }} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">이 빈틈, 카톡으로 봐드릴게요</a>
+      <p className="text-[13px] text-gray-700 leading-relaxed px-1">{decisionGuide.ctaBridge}</p>
+      <a href={buildKakaoUrl(hasPriorityStage && weakest ? `full_${weakest.stageId}` : resultState === "incomplete" ? "full_incomplete" : resultState === "maintain" ? "full_maintain" : "full")} target="_blank" rel="noopener" onClick={() => { trackFullCtaClick(variant); if (resultCode) reportCtaClick(resultCode); }} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">카카오톡으로 마케팅 문의</a>
       <button
         onClick={copyLink}
         className="w-full py-3 rounded-xl border border-gray-200 text-[13px] text-gray-600 hover:border-vp-blue hover:text-vp-blue"

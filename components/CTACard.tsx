@@ -14,11 +14,12 @@ import {
 
 interface CTACardProps {
   answers: Answers;
+  bridge?: string;
   /** 저장 API가 발급한 결과 행 핸들. 있으면 클릭을 그 행에 표시한다(cta_clicked). */
   resultCode?: string | null;
 }
 
-export default function CTACard({ answers, resultCode = null }: CTACardProps) {
+export default function CTACard({ answers, resultCode = null, bridge }: CTACardProps) {
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   // SSR에서는 buildShareUrl이 상대경로를 반환해 hydration mismatch가 나므로,
@@ -66,12 +67,11 @@ export default function CTACard({ answers, resultCode = null }: CTACardProps) {
   return (
     <section className="bg-gradient-to-br from-vp-navy to-[#1a2050] rounded-[14px] px-7 py-8 text-white animate-fade-in-up">
       <h3 className="text-[19px] font-medium leading-[1.45] mb-2.5">
-        이 결과에서 시작하면, 어디까지 갈 수 있는지 같이 그려볼까요?
+        먼저 확인할 일부터 함께 정해볼까요?
       </h3>
 
       <p className="text-[13.5px] text-white/70 leading-relaxed mb-6">
-        같은 점수라도 브랜드마다 처방이 달라요. 우리 브랜드가 어떤 모습으로
-        움직여야 하는지, 진단 결과를 기반으로 같이 그려볼 수 있어요.
+        {bridge ?? "진단 결과와 고객 행동 근거를 함께 보고, 이번에 실행할 마케팅의 순서를 정해요."}
       </p>
 
       <a
@@ -89,7 +89,7 @@ export default function CTACard({ answers, resultCode = null }: CTACardProps) {
         }}
         className="block w-full text-center bg-[#FEE500] text-[#191919] font-medium text-sm py-3.5 rounded-lg hover:bg-[#F5DC00] transition-colors"
       >
-        내 약점 단계, 같이 해결책 찾기 →
+        카카오톡으로 마케팅 문의 →
       </a>
 
       <button

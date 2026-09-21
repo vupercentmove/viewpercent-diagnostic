@@ -51,14 +51,14 @@ export default function UnknownPickCard({ resultCode, unknownAreas }: UnknownPic
   return (
     <section className="bg-white border border-gray-100 rounded-[14px] px-5 py-5 mb-4 animate-fade-in-up">
       <p className="text-[11px] tracking-wide text-vp-warn uppercase font-medium mb-2">
-        아직 안 해본 것
+        아직 확인 전
       </p>
       <p className="text-[15px] font-medium leading-snug text-vp-navy mb-1">
-        이 {items.length}가지는 아직 안 해보셨다고 하셨어요.
+        이 {items.length}가지는 잘 모르겠다고 답하셨어요.
       </p>
-      <p className="text-[13px] text-gray-600 mb-3">하나만 고른다면, 어느 걸 먼저 해보고 싶으세요?</p>
+      <p className="text-[13px] text-gray-600 mb-3">하나만 고른다면, 어느 걸 먼저 확인하고 싶으세요?</p>
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="먼저 해보고 싶은 것">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="먼저 확인하고 싶은 것">
         {items.map((it) => (
           <button
             key={`${it.stageId}-${it.sub}`}
