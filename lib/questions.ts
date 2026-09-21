@@ -94,7 +94,7 @@ export const QUICK_QUESTIONS: Question[] = [
   {
     id: "q6b",
     stageId: 6,
-    text: "재구매율은 카테고리가 정하는 거라, 브랜드가 바꾸기는 어렵다고 보시나요?",
+    text: "최근 재구매 성과를 검토해도, 카테고리 특성 때문에 브랜드가 바꾸기 어렵다고 보고 있나요?",
     answerType: "yn",
   },
 ];

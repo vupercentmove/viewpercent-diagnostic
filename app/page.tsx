@@ -23,6 +23,7 @@ import {
   getFullWeakestStage,
   collectUnknownAreas,
 } from "@/lib/full-deep-scoring";
+import { shouldRequestFullAiComment } from "@/lib/full-result-policy";
 import { computeIcpFlag, type IcpSignals } from "@/lib/full-deep-content";
 import { getFullDeepVariant } from "@/lib/ab";
 import {
@@ -280,6 +281,7 @@ export default function HomePage() {
   }) => {
     setFullAnswers(fullAns);
     setFullVision(vision);
+    setFullAiComment(null);
 
     const scores = calcFullDeepStageScores(fullAns);
     const weakest = getFullWeakestStage(scores);
@@ -312,10 +314,9 @@ export default function HomePage() {
       if (code) setResultCode(code);
     });
 
-    // 전 Stage 모름 — 약점 Stage 자체가 없으므로 /api/analyze 호출 없이 고정 메시지
-    // (weakestStage:0 → stageName(0) → "STAGE 0"이 사용자에게 노출되는 것을 방지)
-    if (!weakest) {
-      setFullAiComment("아직 탐색이 필요한 영역이 많아요. 카톡으로 같이 짚어드릴게요.");
+    // 측정된 약한 단계가 있을 때만 문제 진단형 AI 코멘트를 요청한다.
+    // 전부 양호하거나 확인 전 단계만 남은 경우에는 결과 카드의 결정론적 안내를 쓴다.
+    if (!weakest || !shouldRequestFullAiComment(scores)) {
       return;
     }
 

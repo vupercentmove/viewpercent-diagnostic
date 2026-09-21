@@ -34,8 +34,8 @@ export default function ModeSelect({
         <span className="opacity-70 text-sm">· 약 10분 · 6단계 전체</span>
       </button>
       <p className="text-[12px] text-white/60 text-center leading-relaxed">
-        정밀 진단은 6단계를 하나씩 깊게 봐요. 지금 어디서 새는지 구조로
-        짚어드릴게요.
+        정밀 진단은 6단계를 하나씩 깊게 봐요. 아직 확인하지 못한 영역까지
+        실행 순서에 함께 담아요.
       </p>
     </div>
   );

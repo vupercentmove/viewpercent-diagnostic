@@ -124,7 +124,7 @@ export function detectGap(answers: Answers): GapDiagnosis | null {
       perceivedWorst: 6,
       actualWorst: actualWorstObj.stageId,
       hasGap: true,
-      message: `재구매는 카테고리가 정한다고 보고 계셨는데, 나머지 답변은 그보다 '${actualStage.name}' 단계에서 먼저 고객이 돌아서고 있을 수 있다고 말합니다.`,
+      message: `최근 재구매를 바꾸기 어렵다고 보고 계셨는데, 나머지 답변은 그보다 '${actualStage.name}' 단계에서 먼저 고객이 돌아서고 있을 수 있다고 말합니다.`,
     };
   }
 
@@ -192,7 +192,7 @@ export const ECHO_PHRASES: Record<string, string> = {
   q4b: "사이즈·체형을 언급한 후기가 적다면, 고객은 안 맞을까 봐가 아니라 확인할 데가 없어서 돌아서고 있어요.",
   q5a: "품절로 판매를 멈춘 적이 있다면, 재고가 모자랐다기보다 언제 떨어질지 미리 알 방법이 없었던 거예요.",
   q6a: "재방문 비율을 숫자로 말하기 어렵다면, 재구매가 없는 게 아니라 있었는지조차 아직 보이지 않는 상태예요.",
-  q6b: "재구매를 카테고리가 정하는 것으로 보고 계셨다면, 그 판단이 맞는지 확인할 데이터부터 아직 손에 없을 수 있어요.",
+  q6b: "최근 재구매를 카테고리 특성으로 설명하고 있다면, 첫 구매 상품과 다음 주문 기록을 나눠 보며 그 판단을 다시 확인할 수 있어요.",
 };
 
 /**
