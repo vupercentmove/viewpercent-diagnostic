@@ -20,7 +20,8 @@ export type RateLimitDiagnostic =
   | { reason: "missing_trusted_client_address" }
   | { reason: "missing_server_configuration" }
   | { reason: "upstream_denied" }
-  | { reason: "upstream_failure" }
+  | { reason: "upstream_network_failure" }
+  | { reason: "upstream_protocol_failure" }
   | { reason: "upstream_rejected"; status: number };
 type ReportRateLimitDiagnostic = (diagnostic: RateLimitDiagnostic) => void;
 
@@ -98,7 +99,7 @@ async function allowDistributed(
   try {
     result = await response.json();
   } catch {
-    reportSafely(reportDiagnostic, { reason: "upstream_failure" });
+    reportSafely(reportDiagnostic, { reason: "upstream_protocol_failure" });
     return false;
   }
   if (result === true) return true;
@@ -106,7 +107,7 @@ async function allowDistributed(
     reportSafely(reportDiagnostic, { reason: "upstream_denied" });
     return false;
   }
-  reportSafely(reportDiagnostic, { reason: "upstream_failure" });
+  reportSafely(reportDiagnostic, { reason: "upstream_protocol_failure" });
   return false;
 }
 
@@ -138,7 +139,7 @@ export async function allowRequest(
     if (process.env.NODE_ENV === "production") return await allowDistributed(rawKey, policy, reportDiagnostic);
     return allowLocal(rawKey, policy, now);
   } catch {
-    reportSafely(reportDiagnostic, { reason: "upstream_failure" });
+    reportSafely(reportDiagnostic, { reason: "upstream_network_failure" });
     return false;
   }
 }

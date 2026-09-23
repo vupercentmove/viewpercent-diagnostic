@@ -96,7 +96,7 @@ describe("distributed rate limiting", () => {
 
     expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
 
-    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_failure" }]]);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_protocol_failure" }]]);
   });
 
   it("reports upstream failure rather than denial when a successful response is malformed", async () => {
@@ -108,7 +108,7 @@ describe("distributed rate limiting", () => {
 
     expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
 
-    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_failure" }]]);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_protocol_failure" }]]);
     expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("malformed-body-sentinel");
   });
 
@@ -128,7 +128,7 @@ describe("distributed rate limiting", () => {
 
     expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
 
-    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_failure" }]]);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_network_failure" }]]);
     expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("network-sentinel");
   });
 
