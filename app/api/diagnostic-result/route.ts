@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { insertDiagnosticResult, type DiagnosticResultRow } from "@/lib/supabase";
 import { hasOnlyKeys, isPlainRecord } from "@/lib/api-validation";
 import { readBoundedJson } from "@/lib/http-body";
-import { allowRequest, type RateLimitDiagnostic } from "@/lib/rate-limit";
+import { allowRequest } from "@/lib/rate-limit";
 import { QUICK_QUESTIONS, type Question } from "@/lib/questions";
 import { DEEP_QUESTIONS, getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
 import { buildResultSummary } from "@/lib/result-summary";
@@ -150,22 +150,8 @@ export async function POST(request: Request) {
   if (!parsedJson.ok) return NextResponse.json({ error: parsedJson.error }, { status: parsedJson.status });
   const row = parseBody(parsedJson.value);
   if (!row) return NextResponse.json({ error: "invalid request" }, { status: 400 });
-  let rateLimitDiagnostic: RateLimitDiagnostic | undefined;
-  if (!(await allowRequest(request, RESULT_RATE_LIMIT, Date.now(), (diagnostic) => {
-    rateLimitDiagnostic = diagnostic;
-  }))) {
-    const diagnosticHeader = rateLimitDiagnostic
-      ? "status" in rateLimitDiagnostic
-        ? `${rateLimitDiagnostic.reason}:${rateLimitDiagnostic.status}`
-        : rateLimitDiagnostic.reason
-      : undefined;
-    return NextResponse.json(
-      { error: "rate limited" },
-      {
-        status: 429,
-        headers: diagnosticHeader ? { "x-vp-rate-limit-diagnostic": diagnosticHeader } : undefined,
-      }
-    );
+  if (!(await allowRequest(request, RESULT_RATE_LIMIT))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
 
   const code = randomUUID();
