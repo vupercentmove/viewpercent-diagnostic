@@ -2,9 +2,11 @@
  * Supabase 진단 결과 저장 헬퍼 (서버사이드 전용)
  *
  * @supabase/supabase-js 의존성 없이 PostgREST REST 엔드포인트에 직접 fetch.
- * 익명 insert-only — 테이블 RLS가 INSERT만 허용하므로 anon key로 읽기 불가.
- * 반드시 Route Handler(서버)에서만 호출할 것 (env가 NEXT_PUBLIC 아님).
+ * 보호된 write는 service-role credential로만 수행한다. anon key는 공개 키이므로
+ * 진단 결과·체크포인트·rate-limit 같은 서버 검증 경계에 사용하면 안 된다.
  */
+
+import { buildSupabaseServerHeaders } from "./supabase-headers";
 
 export interface DiagnosticResultRow {
   stage_scores: { stageId: number; score: number }[];
@@ -13,6 +15,7 @@ export interface DiagnosticResultRow {
   result_type: string;
   has_gap: boolean;
   deep_stage_id?: number | null;
+  quick_answers?: Record<string, number> | null;
   deep_answers?: Record<string, number> | null;
   utm?: Record<string, string> | null;
   completed?: boolean;
@@ -36,20 +39,15 @@ export async function insertDiagnosticResult(
   row: DiagnosticResultRow
 ): Promise<void> {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
-    throw new Error("SUPABASE_URL / SUPABASE_ANON_KEY 환경변수가 없습니다.");
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 없습니다.");
   }
 
   const res = await fetch(`${url}/rest/v1/diagnostic_results`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      Prefer: "return=minimal",
-    },
+    headers: { ...buildSupabaseServerHeaders(key), Prefer: "return=minimal" },
     body: JSON.stringify(row),
   });
 
@@ -59,52 +57,70 @@ export async function insertDiagnosticResult(
   }
 }
 
-/** AI 코멘트 응답 1건 기록 (폴백률 집계용). 실패해도 throw 하지 않는다. */
+export interface WorkbookCheckpointConversionRow {
+  event_id: string;
+  stage_id: 3 | 5;
+}
+
+/** 워크북 중간 CTA 전환을 최종 진단 결과와 분리해 저장한다. */
+export async function insertWorkbookCheckpointConversion(
+  row: WorkbookCheckpointConversionRow
+): Promise<void> {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 없습니다.");
+  }
+
+  const res = await fetch(`${url}/rest/v1/workbook_checkpoint_conversions`, {
+    method: "POST",
+    headers: { ...buildSupabaseServerHeaders(key), Prefer: "return=minimal" },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Supabase checkpoint insert 실패 (${res.status}): ${detail}`);
+  }
+}
+
+/** AI 코멘트 응답 1건 기록 (폴백률 집계용). 서버 credential이 없거나 저장 실패 시 throw. */
 export async function logAiCommentEvent(event: {
   mode: string;
   fallback: boolean;
   reason?: string | null;
 }): Promise<void> {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) return;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 없습니다.");
+  }
 
-  try {
-    await fetch(`${url}/rest/v1/ai_comment_events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        mode: event.mode,
-        fallback: event.fallback,
-        reason: event.reason ?? null,
-      }),
-    });
-  } catch (err) {
-    // 집계 실패가 코멘트 응답을 막지 않는다.
-    console.error("[ai_comment_events] insert failed:", err);
+  const res = await fetch(`${url}/rest/v1/ai_comment_events`, {
+    method: "POST",
+    headers: { ...buildSupabaseServerHeaders(key), Prefer: "return=minimal" },
+    body: JSON.stringify({
+      mode: event.mode,
+      fallback: event.fallback,
+      reason: event.reason ?? null,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Supabase ai_comment_events insert 실패 (${res.status}): ${detail}`);
   }
 }
 
-/** RPC 호출 공통 — anon key로 security definer 함수를 부른다. 실패 시 throw. */
+/** Mutation RPC 호출 공통 — service-role credential만 사용한다. 실패 시 throw. */
 async function callRpc(fn: string, args: Record<string, unknown>): Promise<void> {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    throw new Error("SUPABASE_URL / SUPABASE_ANON_KEY 환경변수가 없습니다.");
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 없습니다.");
   }
 
   const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
+    headers: buildSupabaseServerHeaders(key),
     body: JSON.stringify(args),
   });
 

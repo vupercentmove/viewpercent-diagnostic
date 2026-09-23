@@ -10,6 +10,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { STAGES } from "@/lib/stage-meta";
 import { resolveComment, type AiCommentPayload } from "@/lib/ai-fallback";
 import { logAiCommentEvent } from "@/lib/supabase";
+import { hasOnlyKeys, isFiniteScore, isPlainRecord, parseStageScores, weakestStageIsConsistent } from "@/lib/api-validation";
+import { readBoundedJson } from "@/lib/http-body";
+import { allowRequest } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,11 +20,57 @@ interface Body {
   stageScores: { stageId: number; score: number }[];
   overallScore: number;
   weakestStage: number;
-  mode?: "quick" | "full";
+  mode: "quick" | "full";
   vision?: string;
   hasGap?: boolean;
   perceivedWorst?: number;
   actualWorst?: number;
+}
+
+const MAX_BODY_BYTES = 16_384;
+const ANALYZE_RATE_LIMIT = { namespace: "analyze", limit: 5, windowMs: 60_000 } as const;
+const QUICK_KEYS = ["stageScores", "overallScore", "weakestStage", "mode", "hasGap", "perceivedWorst", "actualWorst"] as const;
+const FULL_KEYS = ["stageScores", "overallScore", "weakestStage", "mode", "vision"] as const;
+
+function parseBody(value: unknown): Body | null {
+  if (!isPlainRecord(value)) return null;
+  if (value.mode !== "quick" && value.mode !== "full") return null;
+  if (!hasOnlyKeys(value, value.mode === "full" ? FULL_KEYS : QUICK_KEYS)) return null;
+
+  const stageScores = parseStageScores(value.stageScores);
+  if (!stageScores || !isFiniteScore(value.overallScore)) return null;
+  if (!weakestStageIsConsistent(stageScores, value.weakestStage)) return null;
+
+  if (value.mode === "full") {
+    if (value.vision !== undefined && (typeof value.vision !== "string" || value.vision.length > 500)) return null;
+    return {
+      mode: "full",
+      stageScores,
+      overallScore: value.overallScore,
+      weakestStage: value.weakestStage,
+      ...(value.vision === undefined ? {} : { vision: value.vision }),
+    };
+  }
+
+  if (value.hasGap !== undefined && typeof value.hasGap !== "boolean") return null;
+  for (const key of ["perceivedWorst", "actualWorst"] as const) {
+    const candidate = value[key];
+    if (candidate !== undefined && (typeof candidate !== "number" || !Number.isInteger(candidate) || candidate < 1 || candidate > 6)) return null;
+  }
+  if (value.hasGap === true && (value.perceivedWorst === undefined || value.actualWorst === undefined)) return null;
+
+  const hasGap = value.hasGap as boolean | undefined;
+  const perceivedWorst = value.perceivedWorst as number | undefined;
+  const actualWorst = value.actualWorst as number | undefined;
+  return {
+    mode: "quick",
+    stageScores,
+    overallScore: value.overallScore,
+    weakestStage: value.weakestStage,
+    ...(hasGap === undefined ? {} : { hasGap }),
+    ...(perceivedWorst === undefined ? {} : { perceivedWorst }),
+    ...(actualWorst === undefined ? {} : { actualWorst }),
+  };
 }
 
 /**
@@ -88,30 +137,33 @@ ${scoreLines}
 - 마케팅 문구 금지, 현장 전문가처럼`;
 }
 
-/** 응답을 그대로 돌려주면서 폴백 여부를 집계 테이블에 남긴다 */
+/** 응답 전에 서버 전용 집계 write를 완료한다. 저장 경계가 닫혀 있으면 응답도 실패시킨다. */
 async function respond(payload: AiCommentPayload, mode: Body["mode"]) {
-  await logAiCommentEvent({
-    mode: mode ?? "quick",
-    fallback: payload.fallback === true,
-    reason: payload.reason ?? null,
-  });
+  try {
+    await logAiCommentEvent({
+      mode: mode ?? "quick",
+      fallback: payload.fallback === true,
+      reason: payload.reason ?? null,
+    });
+  } catch (err) {
+    console.error("[analyze] ai comment event insert failed:", err);
+    return NextResponse.json({ error: "store failed" }, { status: 502 });
+  }
   return NextResponse.json(payload);
 }
 
 export async function POST(request: Request) {
-  // 1) body 먼저 파싱 (mode를 알아야 분기)
-  let body: Body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  const parsed = await readBoundedJson(request, MAX_BODY_BYTES);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  }
+  const body = parseBody(parsed.value);
+  if (!body) return NextResponse.json({ error: "invalid request" }, { status: 400 });
+  if (!(await allowRequest(request, ANALYZE_RATE_LIMIT))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
 
   const { stageScores, overallScore, weakestStage, mode, vision } = body;
-  if (!stageScores?.length || typeof overallScore !== "number") {
-    return NextResponse.json({ error: "missing fields" }, { status: 400 });
-  }
-
   const weakScore = stageScores.find((s) => s.stageId === weakestStage)?.score ?? 0;
 
   // AI가 인용해도 되는 수치 = 진단이 실제로 제공한 점수들

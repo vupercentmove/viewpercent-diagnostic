@@ -5,8 +5,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { markCtaClicked } = vi.hoisted(() => ({ markCtaClicked: vi.fn() }));
+const { markCtaClicked, allowRequest } = vi.hoisted(() => ({
+  markCtaClicked: vi.fn(),
+  allowRequest: vi.fn(),
+}));
 vi.mock("@/lib/supabase", () => ({ markCtaClicked }));
+vi.mock("@/lib/rate-limit", () => ({ allowRequest }));
 
 import { POST } from "./route";
 
@@ -28,6 +32,8 @@ describe("POST /api/cta-click", () => {
   beforeEach(() => {
     markCtaClicked.mockReset();
     markCtaClicked.mockResolvedValue(undefined);
+    allowRequest.mockReset();
+    allowRequest.mockResolvedValue(true);
   });
 
   it("code가 없거나 문자열이 아니면 400이고 DB를 건드리지 않는다", async () => {
@@ -39,6 +45,22 @@ describe("POST /api/cta-click", () => {
 
   it("JSON이 아니면 400", async () => {
     expect((await post("not json")).status).toBe(400);
+  });
+
+  it("알 수 없는 필드가 있으면 privileged mutation을 호출하지 않는다", async () => {
+    expect((await post({ code: "abc-123", admin: true })).status).toBe(400);
+    expect(markCtaClicked).not.toHaveBeenCalled();
+  });
+
+  it("제한보다 큰 body는 파싱 전에 413이다", async () => {
+    expect((await post(JSON.stringify({ code: "abc-123", padding: "x".repeat(2_000) }))).status).toBe(413);
+    expect(markCtaClicked).not.toHaveBeenCalled();
+  });
+
+  it("rate limit을 넘으면 429이고 privileged mutation을 호출하지 않는다", async () => {
+    allowRequest.mockResolvedValue(false);
+    expect((await post({ code: "abc-123" })).status).toBe(429);
+    expect(markCtaClicked).not.toHaveBeenCalled();
   });
 
   it("code를 그대로 RPC에 넘기고 200", async () => {

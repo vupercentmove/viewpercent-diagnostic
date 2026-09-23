@@ -30,6 +30,7 @@ export default function AiCommentCard({ answers }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mode: "quick",
           stageScores,
           overallScore,
           weakestStage: worstStage.stageId,

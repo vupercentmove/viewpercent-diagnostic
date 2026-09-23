@@ -22,6 +22,7 @@ app/
   api/
     analyze/route.ts        # Claude Haiku AI 코멘트 생성 (mode별 분기)
     diagnostic-result/route.ts  # 결과 저장 (Supabase) — 결과 행 핸들 code 발급·반환
+    workbook-checkpoint/route.ts # 챕터 3·5 중간 CTA 전환 별도 저장
     cta-click/route.ts          # 카톡 CTA 클릭 → cta_clicked=true (code로 행 특정)
     result-feedback/route.ts    # 결과 화면 반응 (의외였던 단계·한 줄 / 모름 중 먼저 볼 것)
     admin/
@@ -175,6 +176,11 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
   - 정밀 전용: `diagnostic_mode` (quick/full), `vision_answer`, `unknown_areas`, `icp_flag`
 - **응답**: `{ ok: true, code }` — `code`는 이 행의 핸들(uuid). 클라이언트가 `resultCode` 상태로 들고 있다가 아래 두 라우트에 넘긴다. 심화(deep) 저장은 별도 행이라 별도 code를 받지만 CTA·반응은 base 행에 붙이므로 무시한다
 - **벤치마크 필터**: base 분포는 `deep_stage_id IS NULL AND diagnostic_mode <> 'full'` 행만 포함
+- quick/full별 허용 필드, 6단계 점수·최약 단계·수치 범위·배열/문자열 길이를 서버에서 엄격 검증하며 알 수 없는 필드는 거부한다.
+
+### POST /api/workbook-checkpoint
+챕터 3·5 중간 카카오 CTA 클릭을 `workbook_checkpoint_conversions`에 별도 저장한다.
+완료 결과를 만들지 않으므로 `diagnostic_results` 기반 완료·점수 통계를 오염시키지 않는다.
 
 ### POST /api/cta-click
 카톡 CTA 클릭을 결과 행에 표시. `{ code }` → RPC `mark_cta_clicked(p_code)` → `cta_clicked=true`.
@@ -198,7 +204,9 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 - matcher: `["/admin/:path*", "/api/admin/:path*"]` — 페이지와 API를 함께 보호
 - 예외는 로그인 경로 두 개뿐: `/admin/login`, `/api/admin/auth` (막으면 로그인 자체가 불가 → 무한 루프)
 - 미인증 응답: API는 401 JSON(`{"error":"인증이 필요합니다."}`), 페이지는 `/admin/login`으로 307
-- 쿠키 `admin_auth` 값이 `ADMIN_PASSWORD`와 일치할 때만 통과. `ADMIN_PASSWORD` 미설정이면 전부 차단
+- 로그인 성공 시 `ADMIN_SESSION_SECRET`으로 서명한 랜덤·만료 세션 토큰을 `admin_auth`에 저장한다. 비밀번호 자체는 쿠키에 저장하지 않는다.
+- 쿠키는 HttpOnly·SameSite=Lax이며 운영에서는 Secure다. middleware가 서명과 만료를 검증하고, 이전 password-valued cookie는 거부한다.
+- 로그인은 실패 지연과 원자적 rate limit을 적용한다. 운영 배포 전 `ADMIN_SESSION_SECRET`(32바이트 이상)과 rate-limit 마이그레이션이 필요하다.
 - ⚠️ 새 어드민 API를 추가할 때 `/api/admin/` 밖에 두면 이 보호를 받지 못한다. 회귀 테스트는 `middleware.test.ts`
 
 ## 트래킹 이벤트

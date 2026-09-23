@@ -12,11 +12,17 @@
 
 import { NextResponse } from "next/server";
 import { recordResultFeedback } from "@/lib/supabase";
+import { hasOnlyKeys, isPlainRecord } from "@/lib/api-validation";
+import { readBoundedJson } from "@/lib/http-body";
+import { allowRequest } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 const NOTE_MAX = 200;
 const PICK_MAX = 80;
+const MAX_BODY_BYTES = 4_096;
+const FEEDBACK_RATE_LIMIT = { namespace: "result-feedback", limit: 20, windowMs: 60_000 } as const;
+const BODY_KEYS = ["code", "reactionStage", "reactionNote", "unknownPick"] as const;
 
 interface IncomingBody {
   code?: unknown;
@@ -30,12 +36,10 @@ function bad(error: string) {
 }
 
 export async function POST(request: Request) {
-  let body: IncomingBody;
-  try {
-    body = await request.json();
-  } catch {
-    return bad("invalid json");
-  }
+  const parsed = await readBoundedJson(request, MAX_BODY_BYTES);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  if (!isPlainRecord(parsed.value) || !hasOnlyKeys(parsed.value, BODY_KEYS)) return bad("invalid request");
+  const body: IncomingBody = parsed.value;
 
   const code = body.code;
   if (typeof code !== "string" || code.length === 0 || code.length > 64) {
@@ -71,6 +75,9 @@ export async function POST(request: Request) {
 
   if (reactionStage === undefined && reactionNote === undefined && unknownPick === undefined) {
     return bad("nothing to record");
+  }
+  if (!(await allowRequest(request, FEEDBACK_RATE_LIMIT))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
 
   try {

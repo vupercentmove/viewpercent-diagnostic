@@ -24,6 +24,11 @@ function send(path: string, body: Record<string, unknown>): void {
   }
 }
 
+/** 워크북 중간 CTA 클릭 — 최종 진단 결과와 분리된 전용 전환 행으로 저장 */
+export function reportWorkbookCheckpoint(stageId: 3 | 5): void {
+  send("/api/workbook-checkpoint", { stageId });
+}
+
 /** 카톡 CTA 클릭 → diagnostic_results.cta_clicked = true */
 export function reportCtaClick(code: string): void {
   send("/api/cta-click", { code });

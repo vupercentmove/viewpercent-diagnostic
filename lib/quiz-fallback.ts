@@ -13,6 +13,17 @@ export function shouldFallback(streak: number): boolean {
   return streak >= UNKNOWN_FALLBACK_THRESHOLD;
 }
 
+export function isUnknownFallbackSequenceRealizable(values: readonly number[]): boolean {
+  let streak = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    streak = nextUnknownStreak(streak, values[index]);
+    if (shouldFallback(streak)) {
+      return values.slice(index + 1).every(isUnknown);
+    }
+  }
+  return true;
+}
+
 export type FullAnswerNextStep = "advance" | "review" | "fallback";
 
 export function getFullAnswerNextStep(

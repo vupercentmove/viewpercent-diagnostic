@@ -3,6 +3,8 @@
  * 반드시 Route Handler(서버)에서만 호출할 것.
  */
 
+import { buildSupabaseServerHeaders } from "./supabase-headers";
+
 interface StageScore {
   stageId: number;
   score: number;
@@ -25,11 +27,7 @@ export interface DiagnosticRow {
 function adminHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.");
-  return {
-    "Content-Type": "application/json",
-    apikey: key,
-    Authorization: `Bearer ${key}`,
-  };
+  return buildSupabaseServerHeaders(key);
 }
 
 function baseUrl() {
