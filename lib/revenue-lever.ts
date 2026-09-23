@@ -9,14 +9,16 @@
  *
  * 매핑 근거 — vault `뷰퍼센트/08_세일즈머신/코칭-프로세스-정본.md` 프레임 표:
  *   - 매출 3요소 "방문자 수 곱하기 전환율 곱하기 객단가" → STAGE 1은 방문자 수,
- *     STAGE 2~4는 들어온 고객을 구매로 잇는 전환율
+ *     STAGE 2는 들어온 고객을 구매로 잇는 전환율
+ *   - STAGE 3~4는 전환율과 함께 객단가 — 코디·연계 상품(d3e), 결제 직전 혜택·무배 기준(d4b)이
+ *     "한 번에 더 담게" 만드는 구간이다. 정본에 단계 매핑 문장은 없어 2026-09-24 무브가 정했다
+ *     (근거로 제시한 것: 초기 문항 초안 "객단가를 높이는 세트/코디/연계 상품 구조")
  *   - 매출 = 기존 + 신규 "매출은 기존 고객 플러스 신규 고객" → STAGE 5~6은 기존 고객
- *   - 객단가는 6단계 어느 하나에 또렷이 대응하지 않아 억지로 붙이지 않는다
  *
  * ⚠️ 표시용이다. 스코어링과 무관하고, 문구는 무브 승인본이다.
  */
 
-export type RevenueLeverKey = "visitors" | "conversion" | "returning";
+export type RevenueLeverKey = "visitors" | "conversion" | "conversion_aov" | "returning";
 
 export interface RevenueLever {
   key: RevenueLeverKey;
@@ -37,6 +39,11 @@ export const REVENUE_LEVERS: Record<RevenueLeverKey, RevenueLever> = {
     label: "전환율",
     line: "매출 공식(방문자 수 × 전환율 × 객단가)으로 보면, 이 구간은 들어온 고객을 구매로 잇는 전환율 쪽이에요.",
   },
+  conversion_aov: {
+    key: "conversion_aov",
+    label: "전환율·객단가",
+    line: "매출 공식(방문자 수 × 전환율 × 객단가)으로 보면, 이 구간은 들어온 고객이 사게 만들고 한 번에 더 담게 만드는 전환율·객단가 쪽이에요.",
+  },
   returning: {
     key: "returning",
     label: "기존 고객",
@@ -47,8 +54,8 @@ export const REVENUE_LEVERS: Record<RevenueLeverKey, RevenueLever> = {
 const STAGE_TO_LEVER: Record<number, RevenueLeverKey> = {
   1: "visitors",
   2: "conversion",
-  3: "conversion",
-  4: "conversion",
+  3: "conversion_aov",
+  4: "conversion_aov",
   5: "returning",
   6: "returning",
 };

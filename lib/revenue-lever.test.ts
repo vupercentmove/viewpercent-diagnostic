@@ -12,10 +12,16 @@ describe("revenue-lever — 단계별 매출 공식 매핑", () => {
     for (const s of STAGES) expect(getRevenueLever(s.id), `STAGE ${s.id}`).not.toBeNull();
   });
 
-  it("매핑: 1=방문자 / 2·3·4=전환율 / 5·6=기존 고객", () => {
+  it("매핑: 1=방문자 / 2=전환율 / 3·4=전환율·객단가 / 5·6=기존 고객", () => {
     expect(getRevenueLever(1)!.key).toBe("visitors");
-    for (const id of [2, 3, 4]) expect(getRevenueLever(id)!.key).toBe("conversion");
+    expect(getRevenueLever(2)!.key).toBe("conversion");
+    for (const id of [3, 4]) expect(getRevenueLever(id)!.key).toBe("conversion_aov");
     for (const id of [5, 6]) expect(getRevenueLever(id)!.key).toBe("returning");
+  });
+
+  it("매출 3요소가 전부 어딘가에 대응한다 — 객단가를 빠뜨리지 않는다", () => {
+    const lines = [1, 2, 3, 4, 5, 6].map((id) => getRevenueLever(id)!.label).join(" ");
+    for (const f of ["방문자", "전환율", "객단가"]) expect(lines, f).toContain(f);
   });
 
   it("알 수 없는 단계는 null — 호출부는 렌더하지 않는다", () => {
