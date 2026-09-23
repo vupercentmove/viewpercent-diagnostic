@@ -6,6 +6,7 @@ import { type Answers, buildEcho, getTag, LOSS_AVERSION_LINE } from "@/lib/scori
 import { trackEchoView } from "@/lib/analytics";
 import type { BenchmarkResult } from "@/lib/benchmark";
 import { getStageExample } from "@/lib/stage-examples";
+import { getRevenueLever } from "@/lib/revenue-lever";
 
 interface PriorityCardProps {
   worstStageId: number;
@@ -27,6 +28,8 @@ export default function PriorityCard({
   // 최약 단계가 양호(≥70)면 새는 구간이 아니므로 "이 구간이 얇으면 보통 이렇습니다"류의
   // 누수 서술을 붙이지 않는다 (97a3448의 전 구간 양호 가드를 이 예시에도 적용).
   const stageExample = getTag(worstScore) === "good" ? "" : getStageExample(worstStageId);
+  // 상담이 도구 결과를 이어받도록 코치의 매출 공식 언어로 한 줄 번역 (lib/revenue-lever.ts)
+  const lever = getRevenueLever(worstStageId);
 
   useEffect(() => {
     if (echo) trackEchoView("priority", worstStageId, echo.questionId);
@@ -42,9 +45,18 @@ export default function PriorityCard({
         {stage.label} {stage.name}
       </h3>
 
-      <p className="text-[13px] text-gray-500 mb-4">
+      <p className="text-[13px] text-gray-500 mb-3">
         핵심 질문: &ldquo;{stage.coreQuestion}&rdquo;
       </p>
+
+      {lever && (
+        <p className="text-[12.5px] text-gray-600 leading-relaxed mb-4">
+          <span className="inline-block text-[11px] px-1.5 py-0.5 mr-1.5 rounded bg-vp-navy/[0.06] text-vp-navy font-medium align-[1px]">
+            매출 공식 · {lever.label}
+          </span>
+          {lever.line}
+        </p>
+      )}
 
       {/* 업계 벤치마크 — 이 단계의 상대 위치 (개선 여지 강조) */}
       {showBenchmark && (

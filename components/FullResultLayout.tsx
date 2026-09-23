@@ -7,6 +7,7 @@ import { classifyFullResult } from "@/lib/full-result-policy";
 import { getExplainer } from "@/lib/full-deep-content";
 import { getBenchmark } from "@/lib/benchmark";
 import { buildStageEvidence, hasEvidence } from "@/lib/full-deep-evidence";
+import { getRevenueLever } from "@/lib/revenue-lever";
 import RadarChart from "@/components/RadarChart";
 import StageScoreList from "@/components/StageScoreList";
 import StrengthBox from "@/components/StrengthBox";
@@ -182,6 +183,8 @@ function WeakestStageCard({ stage, answers }: { stage: StageScore; answers: Answ
   const meta = STAGES[stage.stageId - 1];
   const ex = getExplainer(stage.stageId);
   const evidence = buildStageEvidence(stage.stageId, answers);
+  // 상담이 도구 결과를 이어받도록 코치의 매출 공식 언어로 한 줄 번역 (lib/revenue-lever.ts)
+  const lever = getRevenueLever(stage.stageId);
 
   return (
     <section className="p-4 rounded-[14px] bg-white border-2 border-vp-blue/40">
@@ -193,6 +196,14 @@ function WeakestStageCard({ stage, answers }: { stage: StageScore; answers: Answ
       {/* 두괄식: 왜 봤나(의도) + 이렇게 가면 됨(행동) 먼저 */}
       <p className="text-[12.5px] text-gray-500 leading-relaxed mt-1.5">{ex.why}</p>
       <p className="text-[12.5px] text-vp-blue leading-relaxed">→ {ex.goodLooksLike}</p>
+      {lever && (
+        <p className="text-[12.5px] text-gray-600 leading-relaxed mt-2.5">
+          <span className="inline-block text-[11px] px-1.5 py-0.5 mr-1.5 rounded bg-vp-navy/[0.06] text-vp-navy font-medium align-[1px]">
+            매출 공식 · {lever.label}
+          </span>
+          {lever.line}
+        </p>
+      )}
 
       {/* 판정 근거 되짚기 — 해석은 붙이지 않고 응답한 영역만 그대로 */}
       {hasEvidence(evidence) && (
