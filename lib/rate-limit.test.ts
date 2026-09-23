@@ -138,7 +138,7 @@ describe("distributed rate limiting", () => {
 
     expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
 
-    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_preparation_failure" }]]);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_request_construction_failure" }]]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -152,7 +152,7 @@ describe("distributed rate limiting", () => {
       digestSpy.mockRestore();
     }
 
-    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_preparation_failure" }]]);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_hash_failure" }]]);
     expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("hash-error-sentinel");
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -163,7 +163,7 @@ describe("distributed rate limiting", () => {
 
     expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
 
-    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_preparation_failure" }]]);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_request_construction_failure" }]]);
     expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("header-error-sentinel");
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -198,7 +198,7 @@ describe("distributed rate limiting", () => {
     await expect(allowRequest(brokenRequest, POLICY, Date.now(), throwingReporter)).resolves.toBe(false);
 
     expect(throwingReporter.mock.calls).toEqual([
-      [{ reason: "upstream_preparation_failure" }],
+      [{ reason: "upstream_request_construction_failure" }],
       [{ reason: "upstream_network_failure" }],
       [{ reason: "internal_failure" }],
     ]);

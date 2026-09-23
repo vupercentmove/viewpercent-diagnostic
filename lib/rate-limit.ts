@@ -21,9 +21,10 @@ export type RateLimitDiagnostic =
   | { reason: "missing_server_configuration" }
   | { reason: "internal_failure" }
   | { reason: "upstream_denied" }
+  | { reason: "upstream_hash_failure" }
   | { reason: "upstream_network_failure" }
-  | { reason: "upstream_preparation_failure" }
   | { reason: "upstream_protocol_failure" }
+  | { reason: "upstream_request_construction_failure" }
   | { reason: "upstream_rejected"; status: number };
 type ReportRateLimitDiagnostic = (diagnostic: RateLimitDiagnostic) => void;
 
@@ -83,6 +84,13 @@ async function allowDistributed(
     reportSafely(reportDiagnostic, { reason: "missing_server_configuration" });
     return false;
   }
+  let hashedKey: string;
+  try {
+    hashedKey = await hashKey(rawKey);
+  } catch {
+    reportSafely(reportDiagnostic, { reason: "upstream_hash_failure" });
+    return false;
+  }
   let endpoint: string;
   let init: RequestInit;
   try {
@@ -91,14 +99,14 @@ async function allowDistributed(
       method: "POST",
       headers: buildSupabaseServerHeaders(key),
       body: JSON.stringify({
-        p_key: await hashKey(rawKey),
+        p_key: hashedKey,
         p_limit: policy.limit,
         p_window_seconds: Math.max(1, Math.ceil(policy.windowMs / 1_000)),
       }),
     };
     void new Request(endpoint, init);
   } catch {
-    reportSafely(reportDiagnostic, { reason: "upstream_preparation_failure" });
+    reportSafely(reportDiagnostic, { reason: "upstream_request_construction_failure" });
     return false;
   }
   let response: Response;
