@@ -19,8 +19,10 @@ export type RateLimitDiagnostic =
   | { reason: "untrusted_runtime" }
   | { reason: "missing_trusted_client_address" }
   | { reason: "missing_server_configuration" }
+  | { reason: "internal_failure" }
   | { reason: "upstream_denied" }
   | { reason: "upstream_network_failure" }
+  | { reason: "upstream_preparation_failure" }
   | { reason: "upstream_protocol_failure" }
   | { reason: "upstream_rejected"; status: number };
 type ReportRateLimitDiagnostic = (diagnostic: RateLimitDiagnostic) => void;
@@ -81,15 +83,31 @@ async function allowDistributed(
     reportSafely(reportDiagnostic, { reason: "missing_server_configuration" });
     return false;
   }
-  const response = await fetch(`${url}/rest/v1/rpc/check_rate_limit`, {
-    method: "POST",
-    headers: buildSupabaseServerHeaders(key),
-    body: JSON.stringify({
-      p_key: await hashKey(rawKey),
-      p_limit: policy.limit,
-      p_window_seconds: Math.max(1, Math.ceil(policy.windowMs / 1_000)),
-    }),
-  });
+  let endpoint: string;
+  let init: RequestInit;
+  try {
+    endpoint = `${url}/rest/v1/rpc/check_rate_limit`;
+    init = {
+      method: "POST",
+      headers: buildSupabaseServerHeaders(key),
+      body: JSON.stringify({
+        p_key: await hashKey(rawKey),
+        p_limit: policy.limit,
+        p_window_seconds: Math.max(1, Math.ceil(policy.windowMs / 1_000)),
+      }),
+    };
+    void new Request(endpoint, init);
+  } catch {
+    reportSafely(reportDiagnostic, { reason: "upstream_preparation_failure" });
+    return false;
+  }
+  let response: Response;
+  try {
+    response = await fetch(endpoint, init);
+  } catch {
+    reportSafely(reportDiagnostic, { reason: "upstream_network_failure" });
+    return false;
+  }
   if (!response.ok) {
     reportSafely(reportDiagnostic, { reason: "upstream_rejected", status: response.status });
     console.error(`[rate-limit] Supabase RPC rejected status=${response.status}`);
@@ -139,7 +157,7 @@ export async function allowRequest(
     if (process.env.NODE_ENV === "production") return await allowDistributed(rawKey, policy, reportDiagnostic);
     return allowLocal(rawKey, policy, now);
   } catch {
-    reportSafely(reportDiagnostic, { reason: "upstream_network_failure" });
+    reportSafely(reportDiagnostic, { reason: "internal_failure" });
     return false;
   }
 }

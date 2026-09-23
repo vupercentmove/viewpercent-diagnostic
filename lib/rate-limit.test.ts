@@ -132,6 +132,78 @@ describe("distributed rate limiting", () => {
     expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("network-sentinel");
   });
 
+  it("reports a bounded reason when the upstream request cannot be prepared", async () => {
+    const diagnosticSpy = vi.fn();
+    process.env.SUPABASE_URL = "not-a-valid-url";
+
+    expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_preparation_failure" }]]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports preparation failure without leaking a hash exception", async () => {
+    const diagnosticSpy = vi.fn();
+    const digestSpy = vi.spyOn(crypto.subtle, "digest").mockRejectedValue(new Error("hash-error-sentinel"));
+
+    try {
+      expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+    } finally {
+      digestSpy.mockRestore();
+    }
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_preparation_failure" }]]);
+    expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("hash-error-sentinel");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports preparation failure without leaking an invalid credential header", async () => {
+    const diagnosticSpy = vi.fn();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_bad\nheader-error-sentinel";
+
+    expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_preparation_failure" }]]);
+    expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("header-error-sentinel");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports unexpected internal failures without leaking request errors", async () => {
+    const diagnosticSpy = vi.fn();
+    const brokenRequest = {
+      headers: { get: () => { throw new Error("internal-error-sentinel"); } },
+    } as unknown as Request;
+
+    expect(await allowRequest(brokenRequest, POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "internal_failure" }]]);
+    expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("internal-error-sentinel");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps preparation, network, and internal failures closed when the reporter throws", async () => {
+    const throwingReporter = vi.fn(() => { throw new Error("reporter-branch-sentinel"); });
+
+    process.env.SUPABASE_URL = "not-a-valid-url";
+    await expect(allowRequest(request(), POLICY, Date.now(), throwingReporter)).resolves.toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    process.env.SUPABASE_URL = "https://x.supabase.co";
+    fetchMock.mockRejectedValueOnce(new Error("network-branch-sentinel"));
+    await expect(allowRequest(request(), POLICY, Date.now(), throwingReporter)).resolves.toBe(false);
+
+    const brokenRequest = {
+      headers: { get: () => { throw new Error("internal-branch-sentinel"); } },
+    } as unknown as Request;
+    await expect(allowRequest(brokenRequest, POLICY, Date.now(), throwingReporter)).resolves.toBe(false);
+
+    expect(throwingReporter.mock.calls).toEqual([
+      [{ reason: "upstream_preparation_failure" }],
+      [{ reason: "upstream_network_failure" }],
+      [{ reason: "internal_failure" }],
+    ]);
+  });
+
   it("logs only the response status when the distributed RPC rejects the credential", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const diagnosticSpy = vi.fn();
