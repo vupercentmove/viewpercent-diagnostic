@@ -64,7 +64,10 @@ async function allowDistributed(rawKey: string, policy: RateLimitPolicy): Promis
       p_window_seconds: Math.max(1, Math.ceil(policy.windowMs / 1_000)),
     }),
   });
-  if (!response.ok) return false;
+  if (!response.ok) {
+    console.error("[rate-limit] Supabase RPC rejected", { status: response.status });
+    return false;
+  }
   return (await response.json().catch(() => false)) === true;
 }
 

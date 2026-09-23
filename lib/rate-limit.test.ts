@@ -63,6 +63,20 @@ describe("distributed rate limiting", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("logs only the response status when the distributed RPC rejects the credential", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ message: "Invalid API key", suppliedKey: "must-not-log" }),
+    });
+
+    expect(await allowRequest(request(), POLICY)).toBe(false);
+    expect(errorSpy).toHaveBeenCalledWith("[rate-limit] Supabase RPC rejected", { status: 401 });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("Invalid API key");
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("must-not-log");
+  });
+
   it.each([
     ["missing", new Request("https://example.test/api")],
     ["malformed", request("not-an-ip")],
