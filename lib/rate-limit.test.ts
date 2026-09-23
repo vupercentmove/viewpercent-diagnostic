@@ -65,16 +65,36 @@ describe("distributed rate limiting", () => {
 
   it("logs only the response status when the distributed RPC rejects the credential", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    process.env.SUPABASE_URL = "https://url-sentinel.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_service-key-sentinel";
+    const sensitiveRequest = new Request("https://request-sentinel.example/api", {
+      headers: {
+        "x-vercel-forwarded-for": "203.0.113.222",
+        "x-request-sentinel": "header-sentinel",
+      },
+    });
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
-      json: async () => ({ message: "Invalid API key", suppliedKey: "must-not-log" }),
+      json: async () => ({ message: "Invalid API key", suppliedKey: "provider-body-sentinel" }),
     });
 
-    expect(await allowRequest(request(), POLICY)).toBe(false);
-    expect(errorSpy).toHaveBeenCalledWith("[rate-limit] Supabase RPC rejected", { status: 401 });
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("Invalid API key");
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("must-not-log");
+    expect(await allowRequest(sensitiveRequest, POLICY)).toBe(false);
+    expect(errorSpy.mock.calls).toEqual([["[rate-limit] Supabase RPC rejected status=401"]]);
+    const serializedCalls = JSON.stringify(errorSpy.mock.calls);
+    for (const forbidden of [
+      "url-sentinel",
+      "request-sentinel",
+      "203.0.113.222",
+      "header-sentinel",
+      "service-key-sentinel",
+      "Invalid API key",
+      "provider-body-sentinel",
+      "x-vercel-forwarded-for",
+      "apikey",
+    ]) {
+      expect(serializedCalls).not.toContain(forbidden);
+    }
   });
 
   it.each([
