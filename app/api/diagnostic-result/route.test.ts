@@ -184,6 +184,32 @@ describe("POST /api/diagnostic-result authoritative answers", () => {
     expect(insertDiagnosticResult).not.toHaveBeenCalled();
   });
 
+  it("exposes only a bounded rate-limit diagnostic reason on denial", async () => {
+    allowRequest.mockImplementation(async (_request, _policy, _now, report) => {
+      report({ reason: "upstream_rejected", status: 401 });
+      return false;
+    });
+
+    const res = await post(QUICK_BODY);
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("x-vp-rate-limit-diagnostic")).toBe("upstream_rejected:401");
+    expect(insertDiagnosticResult).not.toHaveBeenCalled();
+  });
+
+  it("exposes a bounded rate-limit diagnostic reason without an upstream status", async () => {
+    allowRequest.mockImplementation(async (_request, _policy, _now, report) => {
+      report({ reason: "missing_trusted_client_address" });
+      return false;
+    });
+
+    const res = await post(QUICK_BODY);
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("x-vp-rate-limit-diagnostic")).toBe("missing_trusted_client_address");
+    expect(insertDiagnosticResult).not.toHaveBeenCalled();
+  });
+
   it("does not expose a code when the server-only insert fails", async () => {
     insertDiagnosticResult.mockRejectedValue(new Error("down"));
     const res = await post(QUICK_BODY);

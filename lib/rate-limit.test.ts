@@ -58,13 +58,83 @@ describe("distributed rate limiting", () => {
   });
 
   it("fails closed before network access without the server credential", async () => {
+    const diagnosticSpy = vi.fn();
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    expect(await allowRequest(request(), POLICY)).toBe(false);
+    expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "missing_server_configuration" }]]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports a bounded reason when the trusted Vercel client address is missing", async () => {
+    const diagnosticSpy = vi.fn();
+
+    expect(await allowRequest(new Request("https://example.test/api"), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "missing_trusted_client_address" }]]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports a bounded reason when the distributed RPC denies the bucket", async () => {
+    const diagnosticSpy = vi.fn();
+    fetchMock.mockResolvedValue({ ok: true, json: async () => false });
+
+    expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_denied" }]]);
+  });
+
+  it.each([
+    ["null", null],
+    ["object", { allowed: false }],
+    ["array", [false]],
+    ["zero", 0],
+    ["one", 1],
+    ["string", "false"],
+  ])("reports upstream failure for schema-invalid successful JSON: %s", async (_name, body) => {
+    const diagnosticSpy = vi.fn();
+    fetchMock.mockResolvedValue({ ok: true, json: async () => body });
+
+    expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_failure" }]]);
+  });
+
+  it("reports upstream failure rather than denial when a successful response is malformed", async () => {
+    const diagnosticSpy = vi.fn();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => { throw new Error("malformed-body-sentinel"); },
+    });
+
+    expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_failure" }]]);
+    expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("malformed-body-sentinel");
+  });
+
+  it("keeps denial fail-closed and performs no network operation when the reporter throws", async () => {
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const throwingReporter = vi.fn(() => { throw new Error("reporter-sentinel"); });
+
+    await expect(allowRequest(request(), POLICY, Date.now(), throwingReporter)).resolves.toBe(false);
+
+    expect(throwingReporter).toHaveBeenCalledWith({ reason: "missing_server_configuration" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports a bounded reason when the distributed RPC cannot be reached", async () => {
+    const diagnosticSpy = vi.fn();
+    fetchMock.mockRejectedValue(new Error("network-sentinel"));
+
+    expect(await allowRequest(request(), POLICY, Date.now(), diagnosticSpy)).toBe(false);
+
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_failure" }]]);
+    expect(JSON.stringify(diagnosticSpy.mock.calls)).not.toContain("network-sentinel");
   });
 
   it("logs only the response status when the distributed RPC rejects the credential", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const diagnosticSpy = vi.fn();
     process.env.SUPABASE_URL = "https://url-sentinel.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_service-key-sentinel";
     const sensitiveRequest = new Request("https://request-sentinel.example/api", {
@@ -79,7 +149,8 @@ describe("distributed rate limiting", () => {
       json: async () => ({ message: "Invalid API key", suppliedKey: "provider-body-sentinel" }),
     });
 
-    expect(await allowRequest(sensitiveRequest, POLICY)).toBe(false);
+    expect(await allowRequest(sensitiveRequest, POLICY, Date.now(), diagnosticSpy)).toBe(false);
+    expect(diagnosticSpy.mock.calls).toEqual([[{ reason: "upstream_rejected", status: 401 }]]);
     expect(errorSpy.mock.calls).toEqual([["[rate-limit] Supabase RPC rejected status=401"]]);
     const serializedCalls = JSON.stringify(errorSpy.mock.calls);
     for (const forbidden of [

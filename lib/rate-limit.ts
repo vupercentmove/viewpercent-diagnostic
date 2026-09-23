@@ -14,6 +14,24 @@ export interface RateLimitPolicy {
   windowMs: number;
 }
 
+export type RateLimitDiagnostic =
+  | { reason: "invalid_policy" }
+  | { reason: "untrusted_runtime" }
+  | { reason: "missing_trusted_client_address" }
+  | { reason: "missing_server_configuration" }
+  | { reason: "upstream_denied" }
+  | { reason: "upstream_failure" }
+  | { reason: "upstream_rejected"; status: number };
+type ReportRateLimitDiagnostic = (diagnostic: RateLimitDiagnostic) => void;
+
+function reportSafely(reportDiagnostic: ReportRateLimitDiagnostic | undefined, diagnostic: RateLimitDiagnostic) {
+  try {
+    reportDiagnostic?.(diagnostic);
+  } catch {
+    // Diagnostics must never weaken or replace the fail-closed decision.
+  }
+}
+
 function clientAddress(request: Request): string | null {
   if (process.env.NODE_ENV === "production") {
     if (process.env.VERCEL !== "1") return null;
@@ -51,10 +69,17 @@ async function hashKey(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function allowDistributed(rawKey: string, policy: RateLimitPolicy): Promise<boolean> {
+async function allowDistributed(
+  rawKey: string,
+  policy: RateLimitPolicy,
+  reportDiagnostic?: ReportRateLimitDiagnostic
+): Promise<boolean> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return false;
+  if (!url || !key) {
+    reportSafely(reportDiagnostic, { reason: "missing_server_configuration" });
+    return false;
+  }
   const response = await fetch(`${url}/rest/v1/rpc/check_rate_limit`, {
     method: "POST",
     headers: buildSupabaseServerHeaders(key),
@@ -65,25 +90,55 @@ async function allowDistributed(rawKey: string, policy: RateLimitPolicy): Promis
     }),
   });
   if (!response.ok) {
+    reportSafely(reportDiagnostic, { reason: "upstream_rejected", status: response.status });
     console.error(`[rate-limit] Supabase RPC rejected status=${response.status}`);
     return false;
   }
-  return (await response.json().catch(() => false)) === true;
+  let result: unknown;
+  try {
+    result = await response.json();
+  } catch {
+    reportSafely(reportDiagnostic, { reason: "upstream_failure" });
+    return false;
+  }
+  if (result === true) return true;
+  if (result === false) {
+    reportSafely(reportDiagnostic, { reason: "upstream_denied" });
+    return false;
+  }
+  reportSafely(reportDiagnostic, { reason: "upstream_failure" });
+  return false;
 }
 
 /**
  * Production uses an atomic, service-role-only Supabase RPC so limits survive serverless instances.
  * Tests/development use the deterministic in-process implementation. Every error denies.
  */
-export async function allowRequest(request: Request, policy: RateLimitPolicy, now = Date.now()): Promise<boolean> {
+export async function allowRequest(
+  request: Request,
+  policy: RateLimitPolicy,
+  now = Date.now(),
+  reportDiagnostic?: ReportRateLimitDiagnostic
+): Promise<boolean> {
   try {
-    if (!Number.isInteger(policy.limit) || policy.limit < 1 || policy.windowMs < 1) return false;
+    if (!Number.isInteger(policy.limit) || policy.limit < 1 || policy.windowMs < 1) {
+      reportSafely(reportDiagnostic, { reason: "invalid_policy" });
+      return false;
+    }
+    if (process.env.NODE_ENV === "production" && process.env.VERCEL !== "1") {
+      reportSafely(reportDiagnostic, { reason: "untrusted_runtime" });
+      return false;
+    }
     const address = clientAddress(request);
-    if (!address) return false;
+    if (!address) {
+      reportSafely(reportDiagnostic, { reason: "missing_trusted_client_address" });
+      return false;
+    }
     const rawKey = `${policy.namespace}:${address}`;
-    if (process.env.NODE_ENV === "production") return await allowDistributed(rawKey, policy);
+    if (process.env.NODE_ENV === "production") return await allowDistributed(rawKey, policy, reportDiagnostic);
     return allowLocal(rawKey, policy, now);
   } catch {
+    reportSafely(reportDiagnostic, { reason: "upstream_failure" });
     return false;
   }
 }
