@@ -34,7 +34,7 @@ describe("모름 버튼 문구 — 아니요와 뜻이 겹치지 않을 것", ()
   });
 
   it("'해본 적 있나요' 문항이 있어도 모름은 불확실만 뜻한다", () => {
-    const tried = DEEP_QUESTIONS.filter((q) => /본 적 ?이? ?있나요/.test(q.text));
+    const tried = DEEP_QUESTIONS.filter((q) => / 적이? ?있나요/.test(q.text));
     expect(tried.length).toBeGreaterThan(0); // d1d·d2c·d3c·d6d — 이 문항들이 이 테스트의 이유
     expect(UNKNOWN_OPTION_LABEL).toContain("모르겠어요");
   });
