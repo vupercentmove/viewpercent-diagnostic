@@ -5,6 +5,7 @@ import ResultLayout from "@/components/ResultLayout";
 import IntroHero from "@/components/IntroHero";
 import { decodeAnswers } from "@/lib/url-state";
 import { trackShareReferralStart } from "@/lib/analytics";
+import { SHARED_RESULT_START_PATH } from "@/lib/constants";
 
 interface SharedResultProps {
   encoded: string;
@@ -27,7 +28,7 @@ export default function SharedResult({ encoded }: SharedResultProps) {
     return (
       <IntroHero
         onStart={() => {
-          window.location.href = "/";
+          window.location.href = SHARED_RESULT_START_PATH;
         }}
       />
     );

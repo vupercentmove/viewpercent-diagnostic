@@ -4,6 +4,7 @@ import {
   aggregateInflowSources,
   WIRING_TEST_REF,
 } from "./inflow-source";
+import { SHARED_RESULT_REF, SHARED_RESULT_START_PATH } from "./constants";
 
 describe("resolveInflowSource", () => {
   it("ref가 있으면 ref를 쓴다", () => {
@@ -63,5 +64,15 @@ describe("aggregateInflowSources", () => {
 
   it("빈 목록은 빈 배열", () => {
     expect(aggregateInflowSources([])).toEqual([]);
+  });
+});
+
+describe("공유 결과 → 내 진단 시작 경로", () => {
+  // 공유 결과 화면의 "내 브랜드도 진단해보기"가 맨 주소(/)로 보내 입소문 유입이 "미상"에 섞였다.
+  it("시작 경로의 ref가 그대로 유입경로 키가 된다", () => {
+    const params = new URLSearchParams(SHARED_RESULT_START_PATH.split("?")[1]);
+    const utm = { ref: params.get("ref")! };
+    expect(resolveInflowSource(utm)).toBe(SHARED_RESULT_REF);
+    expect(SHARED_RESULT_REF).toMatch(/^[a-z_]+$/); // 채널별 링크 규칙: 소문자 영어·밑줄
   });
 });
