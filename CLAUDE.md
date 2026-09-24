@@ -17,25 +17,36 @@
 ```
 app/
   layout.tsx          # 루트 레이아웃 (Analytics 포함)
-  page.tsx            # 메인 페이지 — 9개 Phase 관리 (모드 선택 포함)
-  admin/              # 관리자 통계 대시보드
+  page.tsx            # 메인 페이지 — 9개 Phase 관리 (모드 선택 포함), readUtm로 ?ref=/utm_* 수집
+  result/[encoded]/   # 공유 결과 SSR 경로 (OG 메타) → SharedResult
+  admin/              # 관리자 통계 대시보드 (유입경로별 완료 포함)
   api/
     analyze/route.ts        # Claude Haiku AI 코멘트 생성 (mode별 분기)
     diagnostic-result/route.ts  # 결과 저장 (Supabase) — 결과 행 핸들 code 발급·반환
     cta-click/route.ts          # 카톡 CTA 클릭 → cta_clicked=true (code로 행 특정)
     result-feedback/route.ts    # 결과 화면 반응 (의외였던 단계·한 줄 / 모름 중 먼저 볼 것)
+    og/route.tsx                # 공유 링크 OG 이미지 (result-summary 파이프라인)
     admin/
       stats/route.ts        # 벤치마크 통계 조회
       results/route.ts      # 결과 상세 조회
       auth/route.ts         # 관리자 인증
 components/
-  IntroHero.tsx       # 시작 화면 (모드 선택: 빠른 진단 / 정밀 진단)
+  IntroHero.tsx       # 시작 화면 → ModeSelect ("성장 워크북 시작하기"=정밀 / "먼저 2분 빠른 점검하기"=빠른)
+  ModeSelect.tsx      # 모드 선택 버튼 2개
   StageJourneyStrip.tsx # 인트로 6단계 여정 스트립 (번호 + 축약 라벨)
   QuizStage.tsx       # 기본 10문항 진단 UI
-  FullDeepQuizStage.tsx # 정밀 진단 27문항 UI + ICP/Vision 문항
+  FullDeepQuizStage.tsx # 정밀 진단 27문항 UI + ICP/Vision 문항 + 모름 버튼(UNKNOWN_OPTION_LABEL)
+  WorkbookChapterIntro.tsx # 정밀: 단계(챕터)마다 개념 → 질문 시작 (workbook-content.ts)
+  WorkbookCheckpoint.tsx   # 정밀: 챕터 끝 체크포인트
+  QuestionExample.tsx # 문항 아래 "어디서 확인하는가" 한 줄 (세 문항 화면 공유)
   DeepQuizStage.tsx   # 심화 진단 UI (적응형)
   AnalyzingInterstitial.tsx # 로딩 인터스티셜 (분석 중...)
-  ResultLayout.tsx    # 결과 화면 (빠른 진단)
+  ResultLayout.tsx    # 결과 화면 (빠른 진단). variant="shared"는 공유 수신자용 — 시작 버튼이 /?ref=shared_result
+  SharedResult.tsx    # /result/[encoded] 수신자 화면 (깨진 링크면 인트로 폴백)
+  ResultHero.tsx · StrengthBox.tsx · AiCommentCard.tsx · CaseStudyCard.tsx · DecisionGuideCard.tsx
+  StickyCtaBar.tsx    # 하단 카톡 CTA — 한 화면 넘게 읽은 뒤에만 붙는다 (진단·영업 분리)
+  ShareCardButton.tsx # 결과 카드 이미지 저장·공유
+  SocialProofBadge.tsx # 누적 진단수 — 표본 임계치 미만이면 수치 숨김 (social-proof.ts)
   FullResultLayout.tsx # 결과 화면 (정밀 진단)
   RadarChart.tsx      # 6각형 레이더 차트
   StageScoreList.tsx  # Stage별 점수 리스트
@@ -62,6 +73,21 @@ lib/
   question-examples.ts    # 문항별 예시 (문항 id → "어디서 확인하는가" 한 줄)
   stage-examples.ts   # 단계별 해석 예시 (결과 화면 약점 단계 1개에만 사용)
   feedback-client.ts  # 결과 화면 → 서버 신호 (CTA 클릭·반응) fire-and-forget
+  url-state.ts        # 결과 URL 인코딩 (빠른 ?a= / 정밀 ?fa=) + 버전별 문항 순서표 — 아래 "공유 링크 인코딩" 필독
+  revenue-lever.ts    # 약점 카드의 "매출 공식" 칩 (1 방문자 수 / 2 전환율 / 3·4 전환율·객단가 / 5·6 기존 고객)
+  inflow-source.ts    # 어드민 유입경로 집계 (ref → utm_source → 미상)
+  full-deep-evidence.ts # 정밀 결과 "이 구간을 짚은 건…" — 낮게 답한/모름 하위 영역 되짚기
+  decision-guide.ts   # 정밀 결과 "도구를 쓰기 전에 정할 것"
+  full-result-policy.ts # 정밀 결과 표현·AI 호출 정책
+  workbook-content.ts # 정밀 진단 챕터(단계)별 개념·목적·결과물 정본
+  likert-scale.ts     # 리커트 앵커 문구 (세 경로 공유)
+  copy-canon.ts       # 금지어·성과 약속 규칙 단일 출처 (예시 테스트들이 공유)
+  benchmark.ts · social-proof.ts # 벤치마크 분포·표본수 (시드 기준치면 "초기 기준" 표기 필수)
+  cases.ts · case-match.ts # 결과 화면 사례 카드 데이터·매칭
+  result-summary.ts   # decode→점수→라벨 파이프라인 (OG·공유 메타 공용)
+  ai-fallback.ts · clean-comment.ts · numeric-guard.ts · stage-guard.ts # AI 코멘트 후처리·폴백 판정
+  strength-stages.ts · sticky-cta-copy.ts · analyzing-steps.ts · progress.ts · quiz-navigation.ts · ab.ts
+  consulting-tools.ts # 관리자 전용 참고 (고객 화면 노출 금지)
 ```
 
 ## 디자인 토큰
@@ -92,7 +118,7 @@ intro (모드 선택)
 ```
 
 **빠른 진단 (quick) 경로:**
-- `intro`: 시작 화면 (버튼 2개: "빠른 진단", "정밀 진단")
+- `intro`: 시작 화면 (버튼 2개: "먼저 2분 빠른 점검하기", "성장 워크북 시작하기"=정밀)
 - `quiz`: 기본 10문항 (6 Stage에 걸쳐 분배)
 - `analyzing`: 로딩 인터스티셜 (2~3초)
 - `result`: 결과 화면 (레이더 차트 + 액션 추천 + 심화 진단 유도)
@@ -100,8 +126,8 @@ intro (모드 선택)
 - `deep-result`: 기본 결과 + 심화 결과 (subArea 분석) 합산 표시
 
 **정밀 진단 (full) 경로:**
-- `intro`: 모드 선택 화면
-- `full-deep-quiz`: 27문항 (6 Stage 당 4~5문항) + ICP 질문 2개 + Vision 질문 1개
+- `intro`: 모드 선택 화면 ("성장 워크북 시작하기")
+- `full-deep-quiz`: 27문항 (6 Stage 당 4~5문항) + ICP 질문 2개 + Vision 질문 1개. 단계마다 워크북 챕터 소개(WorkbookChapterIntro) → 질문 → 체크포인트
 - `full-analyzing`: 로딩 인터스티셜 (AI 분석 중...)
 - `full-result`: 정밀 결과 (AI 코멘트 + 6 Stage 스코어 + 약점 영역별 액션)
 
@@ -131,6 +157,7 @@ intro (모드 선택)
 - **모름 처리**: `UNKNOWN_ANSWER = -1` (`lib/quiz-fallback.ts`)
 - **점수 계산**: 각 Stage별 모름 제외 평균 (`lib/full-deep-scoring.ts`)
   - 예: [100, -1, 50] → 평균 (100+50)/2 = 75
+- **모름 버튼 문구**: `UNKNOWN_OPTION_LABEL` = "잘 모르겠어요 · 확인해 봐야 알아요" (`lib/quiz-fallback.ts`). ⚠️ "안 해봤어요"류를 넣지 말 것 — 2026-09-24까지 "아직 안 해봤어요"였는데, "~하고 있나요/해본 적 있나요" 문항에서 아니요(0점)와 같은 뜻이면서 모름은 점수에서 빠져 안 해본 대표일수록 점수가 올랐다. 가드 테스트가 있다. 모름 응답의 뜻은 2026-09-24T11:17Z(PR #33)부터 좁아졌으니 전후 비율을 섞어 비교하지 말 것
 - **2연속 모름 폴백**: 한 Stage 안에서 서로 다른 문항에 "모름"을 2회 연속 선택하면 그 Stage의 남은 문항을 건너뛰고 설명 카드로 전환. 연속 카운트는 실답변(yes/no/likert) 시 0으로 리셋되고 Stage가 바뀌면 0에서 시작
 - **결과**: 6개 Stage 점수 + 종합 점수
 
@@ -153,6 +180,28 @@ intro (모드 선택)
 - 호칭은 '대표님'(‘당신’ 금지), 존댓말 종결(‘~거야요’처럼 반말·존댓말 혼용 금지)
 - ⚠️ **full 프롬프트에는 6단계 점수를 전부 넘긴다.** 2026-08-17까지 최약 단계 한 줄만 넘겨서, 맥락이 없는 AI가 진단이 짚지 않은 단계를 지목했다(최약 STAGE 3인데 코멘트는 90점짜리 STAGE 4를 원인으로 말함 — 헤로와 코멘트가 한 화면에서 다른 단계를 가리켰다). 프롬프트를 줄일 때 이 점수 블록을 빼지 말 것
 - 최약 단계가 아닌 단계만 지목하면 `lib/stage-guard.ts`가 잡아 폴백시킨다(`reason: "wrong_stage"`). 단계명 비교는 공백을 지우고 한다 — 정본은 `구매결정`인데 AI는 `구매 결정`으로 쓴다
+
+### 공유 링크 인코딩 · 문항 교체 절차 (`lib/url-state.ts`)
+
+결과 URL은 답을 문항 순서대로 한 자리씩 인코딩한다. 순서가 바뀌면 이미 나간 링크가 다른 문항으로 복원되므로 **순서표는 버전별로 동결**한다.
+- 빠른 진단 `?a=` — v1, 접두어 없음 (`QUICK_ORDER_V1`). 자리 값은 역채점이 이미 적용된 점수다
+- 정밀 진단 `?fa=` — 현재 **v4** (`FULL_ENCODING_VERSION = 4`, 접두어 `4-`). v1은 접두어 없음
+  - v2 (2026-09-24, PR #31): STAGE 1 d1c → **d1e** 플랫폼 수수료 vs 자사몰 광고비
+  - v3 (PR #32): STAGE 5 d5b → **d5e** 품절·미송 취소 건수 (세부 영역 "품절 손실")
+  - v4 (PR #34): STAGE 4 d4d → **d4f** 상품별 구매율 비교 (세부 영역 "구매율 확인")
+- 옛 링크는 그 버전 순서로 읽히고, 없어진 문항 답은 스코어링이 읽지 않아 해당 단계가 나머지 문항 평균으로 다시 계산된다
+
+**정밀 문항을 바꿀 때 (반드시 이 순서)**
+1. **새 id를 쓴다.** 같은 id에 문구만 바꾸면 옛 링크와 DB `deep_answers`의 답이 새 문항 답으로 조용히 읽힌다
+2. 새 순서표 `FULL_ORDER_V<n+1>`을 추가하고 `FULL_ENCODING_VERSION`을 올린다. 기존 배열은 절대 수정하지 않는다 (`url-version.test.ts`가 현재 버전 = `DEEP_QUESTIONS` 일치를 검사)
+3. `question-examples.ts`(id 일치 테스트가 강제), `full-deep-content.ts` QUESTION_INSIGHT(테스트 없음, 수동), `decision-experience.test.ts` 문항 계약을 함께 고친다
+4. 머지 전에 실고객 옛 결과의 점수 변화를 계산해 보고한다. 프로덕션 확인은 옛·새 코드가 다르게 답하는 입력으로 한다 (예: 옛 v1 링크의 해당 단계 점수, 새 버전 접두어 링크의 복원 여부)
+5. 문구는 "~할 수 있나요 / 확인할 수 있나요"처럼 확인 가능한 행동으로 끝낸다. 결정 근거 문서는 vault `뷰퍼센트/02_브랜드진단도구/문항 교체안 — *.md`
+
+### 유입경로 (`?ref=`)
+- 결과 저장 시 `readUtm`(app/page.tsx)이 주소창의 `ref`·`utm_*`를 `diagnostic_results.utm`에 넣고, 어드민 "유입경로별 완료"가 `ref → utm_source → 미상`으로 집계한다 (`lib/inflow-source.ts`)
+- 채널 링크 정본(이름 규칙: 소문자 영어·밑줄, 채널명 앞)은 vault `뷰퍼센트/02_브랜드진단도구/채널별 진단 링크 2026-09-24.md`. 공유 결과 수신자는 자동으로 `shared_result`
+- ⚠️ **프로덕션에서 테스트할 때는 `?ref=test`를 붙인다.** 이 테이블엔 테스트/실고객 구분 컬럼이 없어, 표시 없는 테스트 행이 CTA율과 문항별 응답 비율 분석을 부풀렸다 (2026-09-24 hermes 검증 4건·수동 테스트 5건 삭제). 로컬 검증은 PostgREST 스텁으로 한다
 
 ## API 엔드포인트
 
@@ -225,6 +274,8 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 | `reaction_stage` | 결과 화면 "어디가 제일 의외였어요?" 단계 탭 |
 | `reaction_note` | 위 탭 뒤 한 줄까지 남김 |
 | `unknown_pick` | 정밀: 모름 답변 중 먼저 해보고 싶은 것 탭 |
+| `share_referral_start` | 공유 결과 링크(/result/…) 수신자 화면 진입 |
+| `workbook_checkpoint_cta` | 정밀 워크북 챕터 체크포인트 버튼 |
 
 ⚠️ **`sticky_cta_view`의 발사 시점을 옮기지 말 것.** 2026-06부터 "결과 화면 진입수"로
 시계열이 쌓여 있어, 마운트 시점을 바꾸면 과거와 비교가 끊긴다. CTA 실노출을 재려면
@@ -234,7 +285,16 @@ Claude Haiku 4.5를 이용한 AI 결과 분석 코멘트 생성.
 없이 문항 id만으로는 빠른 진단 심화 경로인지 정밀 진단 27문항 경로인지 구분할 수 없다
 (2026-08-02 PR #13에서 분리, 그 전까지는 구분 불가였음).
 
-## 현재 상태 (2026-07-19)
+## 현재 상태 (2026-07-19 작성 · 2026-09-24 보강)
+
+**2026-08~09 추가분:**
+- ✅ 정밀 진단 6챕터 성장 워크북 흐름 (챕터 소개·체크포인트, PR #29) · 결과의 근거 되짚기·판단 가이드 (PR #28)
+- ✅ 문항별 예시 한 줄 (`question-examples.ts`) · 약점 단계 해석 예시 (`stage-examples.ts`, PR #25)
+- ✅ 결과 행 핸들 `code` → CTA 클릭 기록·반응 카드·모름 우선순위 카드 (PR #27)
+- ✅ 공유 링크 인코딩 버전화 (PR #26) → 정밀 v4까지 (문항 3개 교체, PR #31·#32·#34)
+- ✅ 약점 카드 "매출 공식" 칩 (`revenue-lever.ts`, PR #30)
+- ✅ 모름 버튼 문구 분리 (PR #33) · 공유 결과 유입 `ref=shared_result` (PR #35)
+- ⚠️ 병목은 사용량이다 — 2026-09-24 기준 실고객 정밀 응답 3건, CTA 클릭·반응 0건. 문항 변경 효과는 응답이 쌓여야 판단할 수 있다
 
 **빠른 진단 (quick) 경로:**
 - ✅ 기본 10문항 진단 + 결과 화면 — 완성
