@@ -16,7 +16,7 @@ import { QUICK_QUESTIONS } from "./questions";
 import { DEEP_QUESTIONS } from "./deep-questions";
 import { UNKNOWN_ANSWER } from "./quiz-fallback";
 import { calcFullDeepStageScores, getFullWeakestStage } from "./full-deep-scoring";
-import { FULL_ORDER_V2 } from "./url-state";
+import { FULL_ORDER_V2, FULL_ORDER_V3 } from "./url-state";
 
 /**
  * 이 파일이 지키는 계약 — 문항 세트가 자라도 이미 나간 공유 링크가 살아 있을 것.
@@ -55,9 +55,9 @@ describe("버전 접두어 표기", () => {
     expect(encodeAnswers({ q1a: 0 })).not.toContain("-");
   });
 
-  it("정밀 진단은 v2라 '2-' 접두어가 붙는다 (2026-09-24 d1c → d1e 교체)", () => {
-    expect(FULL_ENCODING_VERSION).toBe(2);
-    expect(encodeFullAnswers({ d1a: 0 }).startsWith("2-")).toBe(true);
+  it("정밀 진단은 v3라 '3-' 접두어가 붙는다 (2026-09-24 d1c → d1e, d5b → d5e 교체)", () => {
+    expect(FULL_ENCODING_VERSION).toBe(3);
+    expect(encodeFullAnswers({ d1a: 0 }).startsWith("3-")).toBe(true);
   });
 
   it("공유 경로도 접두어 없이 유지된다 — 카톡에 이미 퍼진 링크와 같은 모양", () => {
@@ -68,7 +68,7 @@ describe("버전 접두어 표기", () => {
   it("모르는 버전 접두어 → null (두 모드 모두)", () => {
     expect(decodeAnswers("2-0000000000")).toBeNull();
     expect(decodeAnswers("99-0000000000")).toBeNull();
-    expect(decodeFullAnswers("3-" + "0".repeat(27))).toBeNull();
+    expect(decodeFullAnswers("4-" + "0".repeat(27))).toBeNull();
   });
 
   it("접두어만 있고 본문이 비면 null", () => {
@@ -167,7 +167,7 @@ describe("정밀 v2 — d1c(자연·유료 비율) → d1e(플랫폼 수수료 v
     expect(getFullWeakestStage(scores)!.stageId).toBe(5);
   });
 
-  it("v2 라운드트립 — d1e 답이 보존된다", () => {
+  it("라운드트립 — d1e 답이 보존된다", () => {
     const answers: Record<string, number> = { d1a: 100, d1e: 0, d1d: 75, d2a: UNKNOWN_ANSWER };
     const decoded = decodeFullAnswers(encodeFullAnswers(answers))!;
     expect(decoded["d1e"]).toBe(0);
@@ -176,3 +176,51 @@ describe("정밀 v2 — d1c(자연·유료 비율) → d1e(플랫폼 수수료 v
   });
 });
 
+
+describe("정밀 v3 — d5b(재고 예측 체계) → d5e(품절·미송 취소 건수 확인)", () => {
+  const REAL_V1 = "044304553002444042040004144"; // d5a 0 · d5b 100 · d5c 0 · d5d 0
+
+  it("현재 문항에서 d5b가 빠지고 d5e가 같은 자리에 들어갔다", () => {
+    const ids = DEEP_QUESTIONS.map((q) => q.id);
+    expect(ids).not.toContain("d5b");
+    expect(ids.slice(18, 22)).toEqual(["d5a", "d5e", "d5c", "d5d"]);
+    const q = DEEP_QUESTIONS.find((x) => x.id === "d5e")!;
+    expect(q.stageId).toBe(5);
+    expect(q.answerType).toBe("yn");
+    expect(q.subArea).toBe("품절 손실");
+  });
+
+  it("v1·v2 순서표는 d5b를 그대로 들고 있다 — 동결", () => {
+    expect(FULL_ORDER_V1[19]).toBe("d5b");
+    expect(FULL_ORDER_V2[19]).toBe("d5b");
+    expect(FULL_ORDER_V3[19]).toBe("d5e");
+    expect(Object.isFrozen(FULL_ORDER_V2)).toBe(true);
+  });
+
+  it("옛 v1 링크: d5b 답이 빠져 STAGE 5가 25 → 0, 최약 단계는 그대로 STAGE 5", () => {
+    const answers = decodeFullAnswers(REAL_V1)!;
+    expect(answers["d5b"]).toBe(100);
+    expect(answers["d5e"]).toBeUndefined();
+    const scores = calcFullDeepStageScores(answers);
+    expect(scores.find((s) => s.stageId === 5)!.score).toBe(0);
+    expect(getFullWeakestStage(scores)!.stageId).toBe(5);
+  });
+
+  it("옛 v2 링크도 열리고 d5b 답은 채점에서 빠진다", () => {
+    // v2 자리 19(d5b)만 100, d5a·d5c·d5d는 100/0/0
+    const v2 = "2-" + "4444" + "4444" + "44444" + "44444" + "4400" + "44444";
+    const answers = decodeFullAnswers(v2)!;
+    expect(answers["d5b"]).toBe(100);
+    expect(answers["d1e"]).toBe(100);
+    const scores = calcFullDeepStageScores(answers);
+    expect(scores.find((s) => s.stageId === 5)!.score).toBe(33); // (100+0+0)/3
+  });
+
+  it("v3 라운드트립 — d5e 답이 보존된다", () => {
+    const answers: Record<string, number> = { d5a: 100, d5e: 0, d5c: UNKNOWN_ANSWER };
+    const decoded = decodeFullAnswers(encodeFullAnswers(answers))!;
+    expect(decoded["d5e"]).toBe(0);
+    expect(decoded["d5c"]).toBe(UNKNOWN_ANSWER);
+    expect("d5b" in decoded).toBe(false);
+  });
+});
