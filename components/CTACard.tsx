@@ -89,7 +89,7 @@ export default function CTACard({ answers, resultCode = null, bridge }: CTACardP
         }}
         className="block w-full text-center bg-[#FEE500] text-[#191919] font-medium text-sm py-3.5 rounded-lg hover:bg-[#F5DC00] transition-colors"
       >
-        카카오톡으로 마케팅 문의 →
+        내 약점 단계, 같이 해결책 찾기 →
       </a>
 
       <button
