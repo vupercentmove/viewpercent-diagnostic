@@ -4,7 +4,7 @@ import { STAGES } from "@/lib/stage-meta";
 import { getDeepQuestionProgress, getDeepQuestionsByStage, type DeepQuestion } from "@/lib/deep-questions";
 import { likertToScore, scoreToLikert, type Answers } from "@/lib/scoring";
 import { LIKERT_ANCHOR_LOW, LIKERT_ANCHOR_HIGH, LIKERT_OPTION_LABEL } from "@/lib/likert-scale";
-import { UNKNOWN_ANSWER, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
+import { UNKNOWN_ANSWER, UNKNOWN_OPTION_LABEL, nextUnknownStreak, shouldFallback } from "@/lib/quiz-fallback";
 import { getExplainer, VISION_QUESTION, ICP_QUESTIONS, STAGE_COACH_LINE, ICP_COACH_LINE, type IcpSignals, getQuestionInsight } from "@/lib/full-deep-content";
 import { trackFullDeepStageComplete, trackFullDeepUnknownFallback, trackVisionAnswer, trackEncouragement, trackQuizAnswer, trackQuestionInsightToggle } from "@/lib/analytics";
 import QuestionExample from "@/components/QuestionExample";
@@ -275,7 +275,7 @@ export default function FullDeepQuizStage({ onComplete, variant }: { onComplete:
               </div>
             )}
             {/* 모름 옵션 — 풀모드 UI 전용 (deep-questions 데이터에 없음) */}
-            <button onClick={() => record(UNKNOWN_ANSWER)} className="w-full mt-2.5 h-[40px] rounded-lg border border-dashed border-gray-300 text-[12.5px] text-gray-500 hover:border-vp-blue hover:text-vp-blue">잘 모르겠어요 · 아직 안 해봤어요</button>
+            <button onClick={() => record(UNKNOWN_ANSWER)} className="w-full mt-2.5 h-[40px] rounded-lg border border-dashed border-gray-300 text-[12.5px] text-gray-500 hover:border-vp-blue hover:text-vp-blue">{UNKNOWN_OPTION_LABEL}</button>
           </>
         ) : (
           <div className="rounded-lg border border-gray-200 bg-white p-3">
