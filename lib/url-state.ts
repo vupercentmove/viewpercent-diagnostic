@@ -131,12 +131,26 @@ export const FULL_ORDER_V1: readonly string[] = Object.freeze([
   "d6a", "d6b", "d6c", "d6d", "d6e",
 ]);
 
+/**
+ * v2 (2026-09-24) — STAGE 1 d1c(자연·유료 유입 비율)를 d1e(플랫폼 수수료 vs 자사몰 광고비)로 교체.
+ * 자리(세 번째)는 같고 id만 다르다. v1 링크는 v1 순서로 읽혀 d1c 키를 돌려주며, 스코어링은
+ * 현재 DEEP_QUESTIONS에 없는 d1c를 읽지 않으므로 STAGE 1이 d1a·d1b·d1d 평균으로 계산된다.
+ */
+export const FULL_ORDER_V2: readonly string[] = Object.freeze([
+  "d1a", "d1b", "d1e", "d1d",
+  "d2a", "d2b", "d2c", "d2d",
+  "d3a", "d3b", "d3c", "d3d", "d3e",
+  "d4a", "d4b", "d4c", "d4d", "d4e",
+  "d5a", "d5b", "d5c", "d5d",
+  "d6a", "d6b", "d6c", "d6d", "d6e",
+]);
+
 /** 버전 번호 → 그 버전의 문항 순서 */
 export const FULL_ORDER_BY_VERSION: Readonly<Record<number, readonly string[]>> =
-  Object.freeze({ 1: FULL_ORDER_V1 });
+  Object.freeze({ 1: FULL_ORDER_V1, 2: FULL_ORDER_V2 });
 
 /** 지금 새로 만드는 링크에 찍히는 버전 */
-export const FULL_ENCODING_VERSION = 1;
+export const FULL_ENCODING_VERSION = 2;
 
 /** 0/25/50/75/100은 기존 SCORE_TO_DIGIT/DIGIT_TO_SCORE 재사용, "모름"·"미응답"만 추가 */
 const FULL_UNKNOWN_DIGIT = "5";
