@@ -91,7 +91,7 @@ describe('공유·점수 문항 계약 유지', () => {
   });
   it('심화 27문항 순서·단계·응답 타입을 유지한다', () => {
     expect(DEEP_QUESTIONS.map(q => `${q.id}:${q.stageId}:${q.answerType}`)).toEqual([
-      'd1a:1:yn', 'd1b:1:yn', 'd1c:1:yn', 'd1d:1:likert',
+      'd1a:1:yn', 'd1b:1:yn', 'd1e:1:yn', 'd1d:1:likert',
       'd2a:2:yn', 'd2b:2:yn', 'd2c:2:likert', 'd2d:2:likert',
       'd3a:3:likert', 'd3b:3:yn', 'd3c:3:yn', 'd3d:3:likert', 'd3e:3:likert',
       'd4a:4:yn', 'd4b:4:yn', 'd4c:4:yn', 'd4d:4:yn', 'd4e:4:likert',

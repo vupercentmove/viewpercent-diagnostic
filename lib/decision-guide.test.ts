@@ -34,13 +34,13 @@ describe('답변에 근거한 AI와 대표의 역할', () => {
   });
   it('모름과 생략을 구분하고 다른 단계의 모름도 먼저 확인할 근거로 남긴다', () => {
     const answers: Answers = { ...fullGood, d3b: 0, d1a: -1, d1b: -1 };
-    delete answers.d1c;
+    delete answers.d1e;
     const guide = buildDecisionGuide('full', answers);
     expect(guide.stageId).toBe(3);
     expect(guide.unknown.map(e => e.questionId)).toEqual(['d1a', 'd1b']);
     expect(guide.unknown[0].answer).toBe('잘 모르겠어요');
     expect(guide.nextStep).toContain('유입 추적');
-    expect(guide.unknown.some(e => e.questionId === 'd1c')).toBe(false);
+    expect(guide.unknown.some(e => e.questionId === 'd1e')).toBe(false);
   });
   it('전부 모름이면 약점으로 판정하지 않고 첫 명시적 모름에서 확인을 시작한다', () => {
     const guide = buildDecisionGuide('full', { d2a: -1, d2b: -1 });

@@ -15,6 +15,8 @@ import {
 import { QUICK_QUESTIONS } from "./questions";
 import { DEEP_QUESTIONS } from "./deep-questions";
 import { UNKNOWN_ANSWER } from "./quiz-fallback";
+import { calcFullDeepStageScores, getFullWeakestStage } from "./full-deep-scoring";
+import { FULL_ORDER_V2 } from "./url-state";
 
 /**
  * 이 파일이 지키는 계약 — 문항 세트가 자라도 이미 나간 공유 링크가 살아 있을 것.
@@ -49,9 +51,13 @@ describe("문항 순서 버전 고정", () => {
 });
 
 describe("버전 접두어 표기", () => {
-  it("v1은 접두어 없이 나간다 — 이미 밖에 있는 링크와 같은 형태", () => {
+  it("빠른 진단은 v1 그대로 접두어 없이 나간다 — 이미 밖에 있는 링크와 같은 형태", () => {
     expect(encodeAnswers({ q1a: 0 })).not.toContain("-");
-    expect(encodeFullAnswers({ d1a: 0 })).not.toContain("-");
+  });
+
+  it("정밀 진단은 v2라 '2-' 접두어가 붙는다 (2026-09-24 d1c → d1e 교체)", () => {
+    expect(FULL_ENCODING_VERSION).toBe(2);
+    expect(encodeFullAnswers({ d1a: 0 }).startsWith("2-")).toBe(true);
   });
 
   it("공유 경로도 접두어 없이 유지된다 — 카톡에 이미 퍼진 링크와 같은 모양", () => {
@@ -62,7 +68,7 @@ describe("버전 접두어 표기", () => {
   it("모르는 버전 접두어 → null (두 모드 모두)", () => {
     expect(decodeAnswers("2-0000000000")).toBeNull();
     expect(decodeAnswers("99-0000000000")).toBeNull();
-    expect(decodeFullAnswers("2-" + "0".repeat(27))).toBeNull();
+    expect(decodeFullAnswers("3-" + "0".repeat(27))).toBeNull();
   });
 
   it("접두어만 있고 본문이 비면 null", () => {
@@ -130,3 +136,43 @@ describe("정밀 진단 — 옛 링크 호환", () => {
     expect("d1c" in decoded!).toBe(false); // 미응답은 키 자체가 없다
   });
 });
+
+describe("정밀 v2 — d1c(자연·유료 비율) → d1e(플랫폼 수수료 vs 자사몰 광고비)", () => {
+  // 제이블린 대표님 실링크 (v1, 27자리) — d1c 자리 답은 "4"(100점)
+  const REAL_V1 = "044304553002444042040004144";
+
+  it("현재 문항에서 d1c가 빠지고 d1e가 같은 자리에 들어갔다", () => {
+    const ids = DEEP_QUESTIONS.map((q) => q.id);
+    expect(ids).not.toContain("d1c");
+    expect(ids.slice(0, 4)).toEqual(["d1a", "d1b", "d1e", "d1d"]);
+    const q = DEEP_QUESTIONS.find((x) => x.id === "d1e")!;
+    expect(q.stageId).toBe(1);
+    expect(q.answerType).toBe("yn");
+    expect(q.subArea).toBe("채널 구조"); // 약점 칩·근거 표시가 그대로 이어지도록
+  });
+
+  it("v1 순서표는 d1c를 그대로 들고 있다 — 동결", () => {
+    expect(FULL_ORDER_V1[2]).toBe("d1c");
+    expect(FULL_ORDER_V2[2]).toBe("d1e");
+  });
+
+  it("옛 v1 링크는 여전히 열리고, d1c 답은 채점에서 빠진다", () => {
+    const answers = decodeFullAnswers(REAL_V1)!;
+    expect(answers["d1c"]).toBe(100); // 키는 살아 있지만
+    expect(answers["d1e"]).toBeUndefined();
+    const scores = calcFullDeepStageScores(answers);
+    // STAGE 1 = d1a(0)·d1b(100)·d1d(75) 평균 — d1c(100)가 빠져 69 → 58
+    expect(scores.find((s) => s.stageId === 1)!.score).toBe(58);
+    // 최약 단계 판정은 그대로 STAGE 5
+    expect(getFullWeakestStage(scores)!.stageId).toBe(5);
+  });
+
+  it("v2 라운드트립 — d1e 답이 보존된다", () => {
+    const answers: Record<string, number> = { d1a: 100, d1e: 0, d1d: 75, d2a: UNKNOWN_ANSWER };
+    const decoded = decodeFullAnswers(encodeFullAnswers(answers))!;
+    expect(decoded["d1e"]).toBe(0);
+    expect(decoded["d2a"]).toBe(UNKNOWN_ANSWER);
+    expect("d1c" in decoded).toBe(false);
+  });
+});
+
