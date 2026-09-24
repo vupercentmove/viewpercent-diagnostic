@@ -5,6 +5,14 @@
  * http → https (모바일 보안경고·혼합콘텐츠·리다이렉트 끊김 방지).
  */
 
+/**
+ * 공유 결과 화면에서 "내 브랜드도 진단해보기"로 들어온 진단의 시작 경로.
+ * ref가 없으면 어드민 유입경로에 "미상"으로 쌓여 입소문을 따로 볼 수 없었다(2026-09-24).
+ * 채널별 링크 규칙(소문자 영어·밑줄)은 vault `02_브랜드진단도구/채널별 진단 링크`.
+ */
+export const SHARED_RESULT_REF = "shared_result";
+export const SHARED_RESULT_START_PATH = `/?ref=${SHARED_RESULT_REF}`;
+
 /** 카카오 채널 상담 URL (https 고정) */
 export const KAKAO_URL = "https://pf.kakao.com/_xbunxen";
 

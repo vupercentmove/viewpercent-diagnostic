@@ -26,6 +26,7 @@ import {
   detectGap,
 } from "@/lib/scoring";
 import { getBenchmark } from "@/lib/benchmark";
+import { SHARED_RESULT_START_PATH } from "@/lib/constants";
 import { matchCase, isGapMatch } from "@/lib/case-match";
 import { matchLabel } from "@/lib/result-labels";
 import { getDeepQuestionsByStage } from "@/lib/deep-questions";
@@ -89,7 +90,7 @@ export default function ResultLayout({
             우리 브랜드는 어디서 매출이 새고 있을까요?
           </p>
           <a
-            href="/"
+            href={SHARED_RESULT_START_PATH}
             className="block w-full text-center bg-vp-blue hover:bg-vp-blue-hover text-white text-[13.5px] font-medium py-2.5 rounded-lg transition-colors"
           >
             내 브랜드도 진단해보기 →
@@ -192,7 +193,7 @@ export default function ResultLayout({
       {/* 다시 진단 / 내 진단 시작 */}
       {isShared ? (
         <a
-          href="/"
+          href={SHARED_RESULT_START_PATH}
           className="mt-4 mb-8 text-[13px] text-vp-blue hover:text-vp-blue-hover transition-colors text-center"
         >
           내 브랜드도 진단해보기 →
