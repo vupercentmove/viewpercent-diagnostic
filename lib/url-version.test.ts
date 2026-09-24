@@ -16,7 +16,7 @@ import { QUICK_QUESTIONS } from "./questions";
 import { DEEP_QUESTIONS } from "./deep-questions";
 import { UNKNOWN_ANSWER } from "./quiz-fallback";
 import { calcFullDeepStageScores, getFullWeakestStage } from "./full-deep-scoring";
-import { FULL_ORDER_V2, FULL_ORDER_V3 } from "./url-state";
+import { FULL_ORDER_V2, FULL_ORDER_V3, FULL_ORDER_V4 } from "./url-state";
 
 /**
  * 이 파일이 지키는 계약 — 문항 세트가 자라도 이미 나간 공유 링크가 살아 있을 것.
@@ -55,9 +55,9 @@ describe("버전 접두어 표기", () => {
     expect(encodeAnswers({ q1a: 0 })).not.toContain("-");
   });
 
-  it("정밀 진단은 v3라 '3-' 접두어가 붙는다 (2026-09-24 d1c → d1e, d5b → d5e 교체)", () => {
-    expect(FULL_ENCODING_VERSION).toBe(3);
-    expect(encodeFullAnswers({ d1a: 0 }).startsWith("3-")).toBe(true);
+  it("정밀 진단은 v4라 '4-' 접두어가 붙는다 (2026-09-24 d1c→d1e, d5b→d5e, d4d→d4f 교체)", () => {
+    expect(FULL_ENCODING_VERSION).toBe(4);
+    expect(encodeFullAnswers({ d1a: 0 }).startsWith("4-")).toBe(true);
   });
 
   it("공유 경로도 접두어 없이 유지된다 — 카톡에 이미 퍼진 링크와 같은 모양", () => {
@@ -68,7 +68,7 @@ describe("버전 접두어 표기", () => {
   it("모르는 버전 접두어 → null (두 모드 모두)", () => {
     expect(decodeAnswers("2-0000000000")).toBeNull();
     expect(decodeAnswers("99-0000000000")).toBeNull();
-    expect(decodeFullAnswers("4-" + "0".repeat(27))).toBeNull();
+    expect(decodeFullAnswers("5-" + "0".repeat(27))).toBeNull();
   });
 
   it("접두어만 있고 본문이 비면 null", () => {
@@ -222,5 +222,54 @@ describe("정밀 v3 — d5b(재고 예측 체계) → d5e(품절·미송 취소 
     expect(decoded["d5e"]).toBe(0);
     expect(decoded["d5c"]).toBe(UNKNOWN_ANSWER);
     expect("d5b" in decoded).toBe(false);
+  });
+});
+
+describe("정밀 v4 — d4d(결제 3단계) → d4f(상품별 구매율 비교)", () => {
+  const REAL_V1 = "044304553002444042040004144"; // d4a 100 · d4b 100 · d4c 0 · d4d 100 · d4e 50
+
+  it("현재 문항에서 d4d가 빠지고 d4f가 같은 자리에 들어갔다", () => {
+    const ids = DEEP_QUESTIONS.map((q) => q.id);
+    expect(ids).not.toContain("d4d");
+    expect(ids.slice(13, 18)).toEqual(["d4a", "d4b", "d4c", "d4f", "d4e"]);
+    const q = DEEP_QUESTIONS.find((x) => x.id === "d4f")!;
+    expect(q.stageId).toBe(4);
+    expect(q.answerType).toBe("yn");
+    expect(q.subArea).toBe("구매율 확인");
+  });
+
+  it("v1~v3 순서표는 d4d를 그대로 들고 있다 — 동결", () => {
+    expect(FULL_ORDER_V1[16]).toBe("d4d");
+    expect(FULL_ORDER_V2[16]).toBe("d4d");
+    expect(FULL_ORDER_V3[16]).toBe("d4d");
+    expect(FULL_ORDER_V4[16]).toBe("d4f");
+    expect(Object.isFrozen(FULL_ORDER_V3)).toBe(true);
+  });
+
+  it("옛 v1 링크: d4d 답이 빠져 STAGE 4가 70 → 63, 최약 단계는 그대로 STAGE 5", () => {
+    const answers = decodeFullAnswers(REAL_V1)!;
+    expect(answers["d4d"]).toBe(100);
+    expect(answers["d4f"]).toBeUndefined();
+    const scores = calcFullDeepStageScores(answers);
+    expect(scores.find((s) => s.stageId === 4)!.score).toBe(63); // (100+100+0+50)/4 = 62.5
+    expect(getFullWeakestStage(scores)!.stageId).toBe(5);
+  });
+
+  it("옛 v3 링크도 열리고 d4d 답은 채점에서 빠진다", () => {
+    // v3 자리 16(d4d)만 100, d4a·d4b·d4c·d4e는 0
+    const v3 = "3-" + "4444" + "4444" + "44444" + "00040" + "4444" + "44444";
+    const answers = decodeFullAnswers(v3)!;
+    expect(answers["d4d"]).toBe(100);
+    expect(answers["d5e"]).toBe(100);
+    const scores = calcFullDeepStageScores(answers);
+    expect(scores.find((s) => s.stageId === 4)!.score).toBe(0);
+  });
+
+  it("v4 라운드트립 — d4f 답이 보존된다", () => {
+    const answers: Record<string, number> = { d4a: 100, d4f: 0, d4e: UNKNOWN_ANSWER };
+    const decoded = decodeFullAnswers(encodeFullAnswers(answers))!;
+    expect(decoded["d4f"]).toBe(0);
+    expect(decoded["d4e"]).toBe(UNKNOWN_ANSWER);
+    expect("d4d" in decoded).toBe(false);
   });
 });

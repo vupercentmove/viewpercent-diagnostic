@@ -3,10 +3,10 @@ import { buildStageEvidence, hasEvidence } from "./full-deep-evidence";
 import { UNKNOWN_ANSWER } from "./quiz-fallback";
 
 // Stage 4 문항: d4a 이탈 복구(yn) / d4b 전환 촉진(yn) / d4c 사이즈 불안(yn)
-// d4d 결제 편의(yn) / d4e 안전감(likert)
+// d4f 구매율 확인(yn) / d4e 안전감(likert)
 describe("full-deep-evidence", () => {
   it("점수를 끌어내린 응답만 low로 되짚는다", () => {
-    const e = buildStageEvidence(4, { d4a: 0, d4b: 100, d4c: 0, d4d: 100, d4e: 100 });
+    const e = buildStageEvidence(4, { d4a: 0, d4b: 100, d4c: 0, d4f: 100, d4e: 100 });
     expect(e.low).toEqual(["이탈 복구", "사이즈 불안"]);
     expect(e.unknown).toEqual([]);
   });
@@ -16,7 +16,7 @@ describe("full-deep-evidence", () => {
       d4a: UNKNOWN_ANSWER,
       d4b: 0,
       d4c: 100,
-      d4d: 100,
+      d4f: 100,
       d4e: 100,
     });
     expect(e.low).toEqual(["전환 촉진"]);
@@ -24,7 +24,7 @@ describe("full-deep-evidence", () => {
   });
 
   it("likert 중간값(50)은 근거로 쓰지 않는다", () => {
-    const e = buildStageEvidence(4, { d4a: 100, d4b: 100, d4c: 100, d4d: 100, d4e: 50 });
+    const e = buildStageEvidence(4, { d4a: 100, d4b: 100, d4c: 100, d4f: 100, d4e: 50 });
     expect(e.low).toEqual([]);
   });
 
