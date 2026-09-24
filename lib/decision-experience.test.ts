@@ -95,7 +95,7 @@ describe('공유·점수 문항 계약 유지', () => {
       'd2a:2:yn', 'd2b:2:yn', 'd2c:2:likert', 'd2d:2:likert',
       'd3a:3:likert', 'd3b:3:yn', 'd3c:3:yn', 'd3d:3:likert', 'd3e:3:likert',
       'd4a:4:yn', 'd4b:4:yn', 'd4c:4:yn', 'd4d:4:yn', 'd4e:4:likert',
-      'd5a:5:yn', 'd5b:5:yn', 'd5c:5:yn', 'd5d:5:yn',
+      'd5a:5:yn', 'd5e:5:yn', 'd5c:5:yn', 'd5d:5:yn',
       'd6a:6:yn', 'd6b:6:yn', 'd6c:6:likert', 'd6d:6:likert', 'd6e:6:yn',
     ]);
   });
