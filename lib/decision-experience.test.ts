@@ -24,11 +24,15 @@ describe('진단 전환 경험', () => {
       const html = renderToStaticMarkup(mode === 'full'
         ? createElement(FullResultLayout, { answers: full, vision: null, aiComment: null, onRestart() {} })
         : createElement(ResultLayout, { answers: quick, variant: mode === 'deep' ? 'deep-result' : mode === 'shared' ? 'shared' : 'result', deepStageId: 1, deepAnswers: { d1a: 0 } }));
-      const labels = ['답변에서 확인한 근거', '답변에서 함께 보인 패턴', 'AI가 도울 수 있는 일', '대표의 판단이 필요한 일', '뷰퍼센트무브가 함께 맡을 일', '카카오톡으로 마케팅 문의'];
+      // CTA 정본: 정밀 "이 빈틈, 카톡으로 봐드릴게요" / 빠른·심화·공유 카드 "내 약점 단계, 같이 해결책 찾기"
+      // (2026-09-21 PR #28에서 "카카오톡으로 마케팅 문의"로 바뀌었다가 2026-09-24 정본으로 복원 — 영업 문구가 진단·영업 분리 원칙과 충돌)
+      const cta = mode === 'full' ? '이 빈틈, 카톡으로 봐드릴게요' : '내 약점 단계, 같이 해결책 찾기';
+      const labels = ['답변에서 확인한 근거', '답변에서 함께 보인 패턴', 'AI가 도울 수 있는 일', '대표의 판단이 필요한 일', '뷰퍼센트무브가 함께 맡을 일', cta];
       const indices = labels.map(label => html.indexOf(label));
       expect(indices.every(index => index >= 0)).toBe(true);
       expect(indices).toEqual([...indices].sort((a, b) => a - b));
       expect(html).toContain('https://pf.kakao.com/');
+      expect(html).not.toContain('마케팅 문의');
       expect(html).not.toContain('이 중 어디가 제일 의외였어요?'); // code 없는 공유·복원
     });
   }

@@ -34,6 +34,7 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
   const radarData = scores.map((s) => ({ stageId: s.stageId, score: s.score }));
   const unmeasured = scores.filter((s) => !s.measured);
   const [copied, setCopied] = useState(false);
+  const [ctaCopied, setCtaCopied] = useState(false);
 
   // 강점 후보는 (a) 측정된 구간이면서 (b) 양호 기준(70점)을 넘긴 것만.
   // getStrengthStages에는 "70점 넘는 게 없으면 상위 2개라도 집는" 폴백이 있어서,
@@ -63,6 +64,21 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
     } catch {
       // clipboard 미지원 브라우저 — 조용히 무시 (주소창 복사로 동일 결과 가능)
     }
+  };
+
+  // 카톡 버튼은 채널 채팅만 연다 — ref에는 단계 번호뿐이고 채널이 그걸 상담 화면에 보여주는지도
+  // 확인되지 않았다. 결과 링크를 따로 복사하지 않으면 코치는 결과 없이 대화를 시작한다
+  // (제이블린 대표님은 주소창을 직접 복사해 보냈다, 2026-08-25). 누르는 순간 링크를 복사해 둔다.
+  // await하지 않는다 — 새 탭 열기를 막지 않기 위해서. 인앱 브라우저 등에서 막히면 조용히 넘어가고
+  // 아래 "결과 링크 복사하기" 버튼이 그대로 남는다.
+  const copyLinkForCta = () => {
+    navigator.clipboard
+      ?.writeText(window.location.href)
+      .then(() => {
+        trackShareUrlCopy("full-cta");
+        setCtaCopied(true);
+      })
+      .catch(() => {});
   };
 
   return (
@@ -164,7 +180,12 @@ export default function FullResultLayout({ answers, vision, aiComment, variant, 
         </p>
       )}
       <p className="text-[13px] text-gray-700 leading-relaxed px-1">{decisionGuide.ctaBridge}</p>
-      <a href={buildKakaoUrl(hasPriorityStage && weakest ? `full_${weakest.stageId}` : resultState === "incomplete" ? "full_incomplete" : resultState === "maintain" ? "full_maintain" : "full")} target="_blank" rel="noopener" onClick={() => { trackFullCtaClick(variant); if (resultCode) reportCtaClick(resultCode); }} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">카카오톡으로 마케팅 문의</a>
+      <a href={buildKakaoUrl(hasPriorityStage && weakest ? `full_${weakest.stageId}` : resultState === "incomplete" ? "full_incomplete" : resultState === "maintain" ? "full_maintain" : "full")} target="_blank" rel="noopener" onClick={() => { trackFullCtaClick(variant); if (resultCode) reportCtaClick(resultCode); copyLinkForCta(); }} className="w-full py-4 rounded-xl bg-vp-blue text-white text-center font-medium hover:bg-vp-blue-hover">이 빈틈, 카톡으로 봐드릴게요</a>
+      {ctaCopied && (
+        <p role="status" aria-live="polite" className="-mt-2 text-[12.5px] text-vp-blue text-center px-1">
+          결과 링크를 복사해 뒀어요 — 카톡 창에 붙여넣어 주세요
+        </p>
+      )}
       <button
         onClick={copyLink}
         className="w-full py-3 rounded-xl border border-gray-200 text-[13px] text-gray-600 hover:border-vp-blue hover:text-vp-blue"

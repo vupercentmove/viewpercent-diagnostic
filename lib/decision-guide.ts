@@ -109,6 +109,6 @@ export function buildDecisionGuide(mode: 'quick' | 'full', answers: Answers, dee
     aiTask: work ? `'${focus}'에서는 ${work.source} 자료를 바탕으로 ${work.ai}` : '확인한 후기·문의·주문 기록이 모이면 분류와 문구 초안을 도울 수 있어요.',
     ownerTask: work ? `'${focus}'의 우선순위는 ${work.owner}` : '어떤 고객의 어떤 행동을 먼저 확인할지, 근거를 어디서 모을지 정하는 일이에요.',
     nextStep,
-    ctaBridge: stageId ? `확인할 영역: '${focus}'. 이 결과를 출발점으로 함께 보고 싶다면 마케팅 문의를 남겨주세요.` : '확인할 자료부터 함께 정하고 싶다면, 이 결과로 마케팅 문의를 시작할 수 있어요.',
+    ctaBridge: stageId ? `확인할 영역: '${focus}'. 이 결과를 출발점으로 카톡에서 같이 볼 수 있어요.` : '확인할 자료부터 함께 정하고 싶다면, 이 결과로 카톡에서 시작할 수 있어요.',
   };
 }

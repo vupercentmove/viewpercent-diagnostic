@@ -201,7 +201,8 @@ export function trackShareCardShare() {
 }
 
 /** 결과 공유 링크(URL) 복사 */
-export function trackShareUrlCopy(context: "result" | "cta" | "full-result") {
+/** full-cta: 정밀 결과 카톡 버튼을 누를 때 결과 링크를 자동 복사한 경우 */
+export function trackShareUrlCopy(context: "result" | "cta" | "full-result" | "full-cta") {
   track("share_url_copy", { context });
 }
 
