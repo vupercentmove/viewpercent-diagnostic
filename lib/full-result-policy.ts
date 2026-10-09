@@ -1,5 +1,4 @@
 import type { FullDeepStageScore } from "./full-deep-scoring";
-import { getDeepQuestionsByStage } from "./deep-questions";
 
 export type FullResultState = "unmeasured" | "incomplete" | "maintain" | "priority";
 
@@ -10,15 +9,8 @@ export type FullResultState = "unmeasured" | "incomplete" | "maintain" | "priori
 export function classifyFullResult(scores: FullDeepStageScore[]): FullResultState {
   const measured = scores.filter((stage) => stage.measured);
   if (measured.length === 0) return "unmeasured";
-
-  const incomplete = scores.some(
-    (stage) =>
-      !stage.measured ||
-      stage.unknownCount > 0 ||
-      stage.answeredCount < getDeepQuestionsByStage(stage.stageId).length
-  );
-  if (incomplete) return "incomplete";
   if (measured.some((stage) => stage.score < 70)) return "priority";
+  if (scores.some((stage) => !stage.measured)) return "incomplete";
   return "maintain";
 }
 
