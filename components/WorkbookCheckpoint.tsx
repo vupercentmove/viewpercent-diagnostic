@@ -2,6 +2,7 @@
 
 import { buildKakaoUrl } from "@/lib/constants";
 import { trackWorkbookCheckpointCta } from "@/lib/analytics";
+import { reportWorkbookCheckpoint } from "@/lib/feedback-client";
 import { getWorkbookChapter } from "@/lib/workbook-content";
 
 export default function WorkbookCheckpoint({
@@ -25,7 +26,10 @@ export default function WorkbookCheckpoint({
         href={buildKakaoUrl(`workbook_checkpoint_${stageId}`)}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={() => trackWorkbookCheckpointCta(stageId)}
+        onClick={() => {
+          reportWorkbookCheckpoint(stageId);
+          trackWorkbookCheckpointCta(stageId);
+        }}
         className="mt-5 block w-full rounded-lg bg-[#FEE500] py-3.5 text-center text-sm font-medium text-[#191919] hover:bg-[#F5DC00]"
       >
         지금까지 확인한 내용으로 문의하기

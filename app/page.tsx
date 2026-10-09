@@ -21,10 +21,15 @@ import { matchLabel } from "@/lib/result-labels";
 import {
   calcFullDeepStageScores,
   getFullWeakestStage,
-  collectUnknownAreas,
 } from "@/lib/full-deep-scoring";
 import { shouldRequestFullAiComment } from "@/lib/full-result-policy";
-import { computeIcpFlag, type IcpSignals } from "@/lib/full-deep-content";
+import { type IcpSignals } from "@/lib/full-deep-content";
+import {
+  buildFullResultPayload,
+  buildQuickResultPayload,
+  type FullResultPayload,
+  type QuickResultPayload,
+} from "@/lib/diagnostic-result-payload";
 import { getFullDeepVariant } from "@/lib/ab";
 import {
   trackDiagnosticStart,
@@ -63,20 +68,7 @@ function readUtm(): Record<string, string> | null {
  * 저장 API가 발급한 결과 행 핸들(code)을 돌려주고, 못 받으면 null — 그러면
  * CTA 클릭·결과 반응 추적만 빠지고 화면은 그대로 간다.
  */
-async function saveResult(payload: {
-  stageScores: { stageId: number; score: number }[];
-  overallScore: number;
-  weakestStage: number;
-  resultType: string;
-  hasGap: boolean;
-  deepStageId?: number | null;
-  deepAnswers?: Record<string, number> | null;
-  // 정밀(full) 모드 필드 — Task 8/9. quick 저장 경로에서는 전달하지 않는다.
-  diagnostic_mode?: string;
-  vision_answer?: string | null;
-  unknown_areas?: { stageId: number; subAreas: string[] }[] | null;
-  icp_flag?: boolean | null;
-}): Promise<string | null> {
+async function saveResult(payload: QuickResultPayload | FullResultPayload): Promise<string | null> {
   try {
     const res = await fetch("/api/diagnostic-result", {
       method: "POST",
@@ -212,15 +204,7 @@ export default function HomePage() {
     trackLabelView(label.id, label.stageId, gapResult?.hasGap ?? false);
 
     // 익명 결과 저장 (업계 벤치마크 집계용) — 돌아온 code로 CTA·반응을 이 행에 붙인다
-    saveResult({
-      stageScores: scores,
-      overallScore: overall,
-      weakestStage: worst.stageId,
-      resultType: gapResult?.hasGap
-        ? `gap_${gapResult.perceivedWorst}_${gapResult.actualWorst}`
-        : "none",
-      hasGap: gapResult?.hasGap ?? false,
-    }).then((code) => {
+    saveResult(buildQuickResultPayload(ans)).then((code) => {
       if (code) setResultCode(code);
     });
   };
@@ -247,17 +231,7 @@ export default function HomePage() {
     // ⚠️ 이 레코드는 deep_stage_id가 non-null인 것으로 구분된다. 벤치마크 집계 시
     //    base 분포는 deep_stage_id IS NULL 행만 세어 deep 완료자 이중집계를 피한다.
     // 이 행의 code는 쓰지 않는다 — CTA·반응은 base 행(resultCode)에 붙는다.
-    void saveResult({
-      stageScores,
-      overallScore,
-      weakestStage: worstStage.stageId,
-      resultType: gap?.hasGap
-        ? `gap_${gap.perceivedWorst}_${gap.actualWorst}`
-        : "none",
-      hasGap: gap?.hasGap ?? false,
-      deepStageId,
-      deepAnswers: ans,
-    });
+    void saveResult(buildQuickResultPayload(answers, { deepStageId, deepAnswers: ans }));
 
     // 스크롤은 DeepResultCard 마운트 시 scrollIntoView가 담당한다.
     // 여기서 window.scrollTo(top:0)를 같이 걸면 목적지가 다른 smooth 스크롤
@@ -276,7 +250,7 @@ export default function HomePage() {
     icpSignals,
   }: {
     answers: Answers;
-    vision: string | null;
+    vision: string;
     icpSignals: IcpSignals;
   }) => {
     setFullAnswers(fullAns);
@@ -295,22 +269,7 @@ export default function HomePage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     // 저장 (fire-and-forget) — icpFlag 판정 포함
-    saveResult({
-      stageScores: scores.map((s) => ({ stageId: s.stageId, score: s.score })),
-      overallScore: overall,
-      weakestStage: weakest?.stageId ?? 0,
-      resultType: "full",
-      hasGap: false,
-      // 27문항 원본 응답 — 지금까지 집계값만 남고 문항별 응답은 저장되지 않았다.
-      // 이게 없으면 문항 개선(예: 리커트→yn 전환)의 효과를 사후 검증할 수 없다.
-      // '모름'(-1)도 그대로 담는다 — 언어 원칙상 가장 정보가 많은 응답이다.
-      // deep_stage_id는 null로 남으므로 벤치마크 base 분포 필터에는 영향이 없다.
-      deepAnswers: fullAns,
-      diagnostic_mode: "full",
-      vision_answer: vision,
-      unknown_areas: collectUnknownAreas(fullAns),
-      icp_flag: computeIcpFlag(icpSignals),
-    }).then((code) => {
+    saveResult(buildFullResultPayload(fullAns, vision, icpSignals)).then((code) => {
       if (code) setResultCode(code);
     });
 
