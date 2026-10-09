@@ -108,7 +108,7 @@ describe("POST /api/diagnostic-result authoritative answers", () => {
       ...FULL_ANSWERS,
       d1a: -1,
       d1b: -1,
-      d1c: 100,
+      d1e: 100,
       d1d: 75,
     };
 
