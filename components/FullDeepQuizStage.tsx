@@ -15,7 +15,7 @@ import { WORKBOOK_TOTAL_QUESTIONS } from "@/lib/workbook-content";
 const STAGE_IDS = STAGES.map((s) => s.id);
 type Mode = "chapter-intro" | "quiz" | "explainer" | "icp" | "vision" | "coach" | "checkpoint";
 
-export default function FullDeepQuizStage({ onComplete, variant }: { onComplete: (r: { answers: Answers; vision: string | null; icpSignals: IcpSignals }) => void; variant: "A" | "B" }) {
+export default function FullDeepQuizStage({ onComplete, variant }: { onComplete: (r: { answers: Answers; vision: string; icpSignals: IcpSignals }) => void; variant: "A" | "B" }) {
   const [answers, setAnswers] = useState<Answers>({});
   const [icp, setIcp] = useState<IcpSignals>({});
   const [stageIdx, setStageIdx] = useState(0);

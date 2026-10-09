@@ -11,20 +11,27 @@
 
 import { NextResponse } from "next/server";
 import { markCtaClicked } from "@/lib/supabase";
+import { hasOnlyKeys, isPlainRecord } from "@/lib/api-validation";
+import { readBoundedJson } from "@/lib/http-body";
+import { allowRequest } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+const MAX_BODY_BYTES = 1_024;
+const CTA_RATE_LIMIT = { namespace: "cta-click", limit: 20, windowMs: 60_000 } as const;
 
 export async function POST(request: Request) {
-  let body: { code?: unknown };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  const parsed = await readBoundedJson(request, MAX_BODY_BYTES);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  if (!isPlainRecord(parsed.value) || !hasOnlyKeys(parsed.value, ["code"])) {
+    return NextResponse.json({ error: "invalid request" }, { status: 400 });
   }
 
-  const code = body.code;
+  const code = parsed.value.code;
   if (typeof code !== "string" || code.length === 0 || code.length > 64) {
     return NextResponse.json({ error: "missing code" }, { status: 400 });
+  }
+  if (!(await allowRequest(request, CTA_RATE_LIMIT))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
 
   try {

@@ -1,42 +1,61 @@
-/**
- * RPC 헬퍼가 PostgREST 규약(/rest/v1/rpc/<fn>, p_ 인자명)대로 부르는지 고정한다.
- * 실제 네트워크는 타지 않는다 — fetch를 스텁한다.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { markCtaClicked, recordResultFeedback } from "./supabase";
+import {
+  insertDiagnosticResult,
+  insertWorkbookCheckpointConversion,
+  logAiCommentEvent,
+  markCtaClicked,
+  recordResultFeedback,
+} from "./supabase";
 
-describe("supabase RPC 헬퍼", () => {
+describe("server-only Supabase mutation RPC helpers", () => {
   const fetchMock = vi.fn();
-  const saved = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_ANON_KEY };
+  const saved = {
+    url: process.env.SUPABASE_URL,
+    anon: process.env.SUPABASE_ANON_KEY,
+    service: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
 
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://x.supabase.co";
-    process.env.SUPABASE_ANON_KEY = "anon-key";
+    process.env.SUPABASE_ANON_KEY = "public-anon-key";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_secret_server-test";
     fetchMock.mockReset();
+    fetchMock.mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    if (saved.url) process.env.SUPABASE_URL = saved.url;
-    else delete process.env.SUPABASE_URL;
-    if (saved.key) process.env.SUPABASE_ANON_KEY = saved.key;
-    else delete process.env.SUPABASE_ANON_KEY;
+    for (const [name, value] of Object.entries({
+      SUPABASE_URL: saved.url,
+      SUPABASE_ANON_KEY: saved.anon,
+      SUPABASE_SERVICE_ROLE_KEY: saved.service,
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   });
 
-  it("markCtaClicked: rpc/mark_cta_clicked에 p_code로, anon key 헤더로 보낸다", async () => {
-    fetchMock.mockResolvedValue({ ok: true });
+  it.each([
+    ["mark_cta_clicked", () => markCtaClicked("c-1")],
+    ["record_result_feedback", () => recordResultFeedback({ code: "c-1", reactionStage: 3 })],
+  ])("uses only the service-role credential for %s", async (_name, mutate) => {
+    await mutate();
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.headers.apikey).toBe("sb_secret_server-test");
+    expect(init.headers.Authorization).toBeUndefined();
+    expect(init.headers.apikey).not.toBe("public-anon-key");
+  });
+
+  it("markCtaClicked sends the exact RPC payload", async () => {
     await markCtaClicked("c-1");
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://x.supabase.co/rest/v1/rpc/mark_cta_clicked");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body)).toEqual({ p_code: "c-1" });
-    expect(init.headers.apikey).toBe("anon-key");
-    expect(init.headers.Authorization).toBe("Bearer anon-key");
   });
 
-  it("recordResultFeedback: 안 넘긴 필드는 null — RPC의 coalesce가 기존 값을 지킨다", async () => {
-    fetchMock.mockResolvedValue({ ok: true });
+  it("recordResultFeedback sends absent fields as null for RPC coalesce", async () => {
     await recordResultFeedback({ code: "c-1", reactionStage: 3 });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://x.supabase.co/rest/v1/rpc/record_result_feedback");
@@ -48,14 +67,46 @@ describe("supabase RPC 헬퍼", () => {
     });
   });
 
-  it("응답이 ok가 아니면 함수명을 담아 throw", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 404, text: async () => "no fn" });
-    await expect(markCtaClicked("c")).rejects.toThrow(/mark_cta_clicked.*404/);
+  it("logs AI comment events with the service-role credential", async () => {
+    await logAiCommentEvent({ mode: "quick", fallback: false });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://x.supabase.co/rest/v1/ai_comment_events");
+    expect(init.headers.apikey).toBe("sb_secret_server-test");
+    expect(init.headers.Authorization).toBeUndefined();
   });
 
-  it("env가 없으면 네트워크를 타기 전에 throw", async () => {
-    delete process.env.SUPABASE_URL;
-    await expect(markCtaClicked("c")).rejects.toThrow(/환경변수/);
+  it("inserts diagnostic results with a new secret key and no Bearer header", async () => {
+    await insertDiagnosticResult({
+      stage_scores: [{ stageId: 1, score: 100 }],
+      overall_score: 100,
+      weakest_stage: 1,
+      result_type: "none",
+      has_gap: false,
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://x.supabase.co/rest/v1/diagnostic_results");
+    expect(init.headers.apikey).toBe("sb_secret_server-test");
+    expect(init.headers.Authorization).toBeUndefined();
+  });
+
+  it("inserts workbook checkpoints with a new secret key and no Bearer header", async () => {
+    await insertWorkbookCheckpointConversion({ event_id: "event-1", stage_id: 3 });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://x.supabase.co/rest/v1/workbook_checkpoint_conversions");
+    expect(init.headers.apikey).toBe("sb_secret_server-test");
+    expect(init.headers.Authorization).toBeUndefined();
+  });
+
+  it("fails closed before network access when the service-role credential is absent", async () => {
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    await expect(markCtaClicked("c")).rejects.toThrow(/SUPABASE_SERVICE_ROLE_KEY/);
+    await expect(logAiCommentEvent({ mode: "quick", fallback: false })).rejects.toThrow(/SUPABASE_SERVICE_ROLE_KEY/);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws with the mutation name when Supabase rejects the request", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 404, text: async () => "no fn" });
+    await expect(markCtaClicked("c")).rejects.toThrow(/mark_cta_clicked.*404/);
+    await expect(logAiCommentEvent({ mode: "quick", fallback: false })).rejects.toThrow(/ai_comment_events.*404/);
   });
 });

@@ -5,8 +5,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { recordResultFeedback } = vi.hoisted(() => ({ recordResultFeedback: vi.fn() }));
+const { recordResultFeedback, allowRequest } = vi.hoisted(() => ({
+  recordResultFeedback: vi.fn(),
+  allowRequest: vi.fn(),
+}));
 vi.mock("@/lib/supabase", () => ({ recordResultFeedback }));
+vi.mock("@/lib/rate-limit", () => ({ allowRequest }));
 
 import { POST } from "./route";
 
@@ -21,7 +25,11 @@ function post(payload: unknown) {
 }
 
 describe("POST /api/result-feedback — 입력 검증", () => {
-  beforeEach(() => recordResultFeedback.mockReset());
+  beforeEach(() => {
+    recordResultFeedback.mockReset();
+    allowRequest.mockReset();
+    allowRequest.mockResolvedValue(true);
+  });
 
   it("code 없음 → 400", async () => {
     expect((await post({ reactionStage: 3 })).status).toBe(400);
@@ -53,12 +61,30 @@ describe("POST /api/result-feedback — 입력 검증", () => {
   it("JSON이 아니면 400", async () => {
     expect((await post("nope")).status).toBe(400);
   });
+
+  it("알 수 없는 필드가 있으면 privileged mutation을 호출하지 않는다", async () => {
+    expect((await post({ code: "c", reactionStage: 1, role: "service_role" })).status).toBe(400);
+    expect(recordResultFeedback).not.toHaveBeenCalled();
+  });
+
+  it("제한보다 큰 body는 파싱 전에 413이다", async () => {
+    expect((await post(JSON.stringify({ code: "c", reactionStage: 1, padding: "x".repeat(5_000) }))).status).toBe(413);
+    expect(recordResultFeedback).not.toHaveBeenCalled();
+  });
+
+  it("rate limit을 넘으면 429이고 privileged mutation을 호출하지 않는다", async () => {
+    allowRequest.mockResolvedValue(false);
+    expect((await post({ code: "c", reactionStage: 1 })).status).toBe(429);
+    expect(recordResultFeedback).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/result-feedback — 정상 경로", () => {
   beforeEach(() => {
     recordResultFeedback.mockReset();
     recordResultFeedback.mockResolvedValue(undefined);
+    allowRequest.mockReset();
+    allowRequest.mockResolvedValue(true);
   });
 
   it("단계만 보내면 단계만 RPC로 간다", async () => {
